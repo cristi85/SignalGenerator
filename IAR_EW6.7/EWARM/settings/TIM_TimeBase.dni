@@ -1,0 +1,123 @@
+[DebugChecksum]
+Checksum=775646054
+[Exceptions]
+StopOnUncaught=_ 0
+StopOnThrow=_ 0
+[Stack]
+FillEnabled=0
+OverflowWarningsEnabled=1
+WarningThreshold=90
+SpWarningsEnabled=1
+WarnLogOnly=1
+UseTrigger=1
+TriggerName=main
+LimitSize=0
+ByteLimit=50
+[CallStack]
+ShowArgs=0
+[Disassembly]
+MixedMode=1
+[SWOTraceHWSettings]
+OverrideDefaultClocks=0
+CpuClock=48000000
+ClockAutoDetect=0
+ClockWanted=2000000
+JtagSpeed=2000000
+Prescaler=24
+TimeStampPrescIndex=0
+TimeStampPrescData=0
+PcSampCYCTAP=1
+PcSampPOSTCNT=15
+PcSampIndex=0
+DataLogMode=0
+ITMportsEnable=0
+ITMportsTermIO=0
+ITMportsLogFile=0
+ITMlogFile=$PROJ_DIR$\ITM.log
+[DriverProfiling]
+Enabled=0
+Mode=3
+Graph=0
+Symbiont=0
+Exclusions=
+[stlink]
+stlinkserialNo=740A1600
+stlinkfoundProbes=
+[CodeCoverage]
+Enabled=_ 0
+[struct_types]
+Fmt0=struct CalibData-ADC_Samp_Avg	3	0
+[array_types]
+Fmt0=u16[100]	3	0
+Fmt1=u32[10]	4	0
+Fmt2=u8[10]	4	0
+Fmt3=u8[24]	4	0
+Fmt4=unsigned char[24]	4	0
+[watch_formats]
+Fmt0={W}0:Altitude_frac	3	0
+Fmt1={W}0:CalibData_Status	3	0
+Fmt2={W}0:FLAG_RF_rcv_key_valid	1	0
+Fmt3={W}0:RFPulse_ONtime	3	0
+Fmt4={W}0:RF_bits	3	0
+Fmt5={W}0:RF_bits_total	3	0
+Fmt6={W}0:RF_rcvMsgState	3	0
+Fmt7={W}0:START_idx	3	0
+Fmt8={W}0:STM_clk_src	3	0
+Fmt9={W}0:Speed_2ms_cnt	3	0
+Fmt10={W}0:Speed_Samples	3	0
+Fmt11={W}0:Speed_Samples_Var	3	0
+Fmt12={W}0:Temperature	3	0
+Fmt13={W}0:Temperature_frac	3	0
+Fmt14={W}0:_disp_curr_scr	3	0
+Fmt15={W}0:adc_samp_avg_cnt	3	0
+Fmt16={W}0:btn2_0_cnt	3	0
+Fmt17={W}0:idx_RFPulseRecord	3	0
+Fmt18={W}0:scr_tmr_cnt	3	0
+Fmt19={W}0:seccode	4	0
+Fmt20={W}0:test	4	0
+Fmt21={W}0:tmp	4	0
+Fmt22={W}0:towrite	3	0
+[Trace2]
+Enabled=0
+ShowSource=0
+[SWOTraceWindow]
+PcSampling=0
+InterruptLogs=0
+ForcedTimeStamps=0
+EventCPI=0
+EventEXC=0
+EventFOLD=0
+EventLSU=0
+EventSLEEP=0
+[DataLog]
+LogEnabled=0
+GraphEnabled=0
+ShowTimeLog=1
+SumEnabled=0
+ShowTimeSum=1
+[InterruptLog]
+LogEnabled=0
+GraphEnabled=0
+ShowTimeLog=1
+SumEnabled=0
+ShowTimeSum=1
+SumSortOrder=0
+[Log file]
+LoggingEnabled=_ 0
+LogFile=_ ""
+Category=_ 0
+[TermIOLog]
+LoggingEnabled=_ 0
+LogFile=_ ""
+[CallStackLog]
+Enabled=0
+[CallStackStripe]
+ShowTiming=1
+[Disassemble mode]
+mode=0
+[Breakpoints2]
+Bp0=_ 1 "EMUL_CODE" "{$PROJ_DIR$\..\system_stm32f0xx.c}.187.3" 0 0 1 "" 0 "" 0
+Count=1
+[Aliases]
+Count=0
+SuppressDialog=0
