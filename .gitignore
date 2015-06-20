@@ -4,6 +4,10 @@
 *.obj
 *.elf
 
+# EWARM Obj files
+*.pbi
+*.cout
+
 # Precompiled Headers
 *.gch
 *.pch
