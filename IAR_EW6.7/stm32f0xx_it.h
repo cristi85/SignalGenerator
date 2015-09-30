@@ -40,6 +40,11 @@
 #define UARTCMDLEN        (u8)32
 #define BTN_DEPRESSED     (u8)0
 #define BTN_PRESSED       (u8)1
+   
+#define BTN_DELAY_300ms   (u8)150   /* 300ms */
+#define BTN_DELAY_1000ms  (u16)500  /* 1s */
+#define BTN_DELAY_2500ms  (u16)1250 /* 2.5s */
+#define BTN_DELAY_5000ms  (u16)2500 /* 5s */
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
 /* Exported macro ------------------------------------------------------------*/

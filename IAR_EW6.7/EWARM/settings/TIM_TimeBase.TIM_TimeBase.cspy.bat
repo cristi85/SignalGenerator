@@ -25,7 +25,7 @@ if not "%1" == "" goto debugFile
 
 @echo on 
 
-"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2\common\bin\cspybat" -f "D:\_WORK\ST\STM32F0\SignalGenerator\IAR_EW6.7\EWARM\settings\TIM_TimeBase.TIM_TimeBase.general.xcl" --backend -f "D:\_WORK\ST\STM32F0\SignalGenerator\IAR_EW6.7\EWARM\settings\TIM_TimeBase.TIM_TimeBase.driver.xcl" 
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2\common\bin\cspybat" -f "D:\_WORK\GitHub\SignalGenerator\IAR_EW6.7\EWARM\settings\TIM_TimeBase.TIM_TimeBase.general.xcl" --backend -f "D:\_WORK\GitHub\SignalGenerator\IAR_EW6.7\EWARM\settings\TIM_TimeBase.TIM_TimeBase.driver.xcl" 
 
 @echo off 
 goto end 
@@ -34,7 +34,7 @@ goto end
 
 @echo on 
 
-"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2\common\bin\cspybat" -f "D:\_WORK\ST\STM32F0\SignalGenerator\IAR_EW6.7\EWARM\settings\TIM_TimeBase.TIM_TimeBase.general.xcl" "--debug_file=%1" --backend -f "D:\_WORK\ST\STM32F0\SignalGenerator\IAR_EW6.7\EWARM\settings\TIM_TimeBase.TIM_TimeBase.driver.xcl" 
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2\common\bin\cspybat" -f "D:\_WORK\GitHub\SignalGenerator\IAR_EW6.7\EWARM\settings\TIM_TimeBase.TIM_TimeBase.general.xcl" "--debug_file=%1" --backend -f "D:\_WORK\GitHub\SignalGenerator\IAR_EW6.7\EWARM\settings\TIM_TimeBase.TIM_TimeBase.driver.xcl" 
 
 @echo off 
 :end

@@ -400,20 +400,27 @@ int main(void)
         {
           case Freq_Selected:
           {
-            if(BTN_FREQINC_press_timer > BTN_DELAY_1000ms && BTN_FREQINC_press_timer < BTN_DELAY_2500ms)  
+            if(BTN_FREQINC_press_timer < BTN_DELAY_1000ms)  
             {
               if(pwm_sig_period < 65535) pwm_sig_period++;
             }
-            else if(BTN_FREQINC_press_timer >= BTN_DELAY_2500ms && BTN_FREQINC_press_timer < BTN_DELAY_5000ms)
+            else if(BTN_FREQINC_press_timer >= BTN_DELAY_1000ms && BTN_FREQINC_press_timer < BTN_DELAY_2500ms)
             {
               if(pwm_sig_period < 65525) pwm_sig_period += 10;
+              else pwm_sig_period = 65535;
+            }
+            else if(BTN_FREQINC_press_timer >= BTN_DELAY_2500ms && BTN_FREQINC_press_timer < BTN_DELAY_5000ms)
+            {
+              if(pwm_sig_period < 65435) pwm_sig_period += 100;
+              else pwm_sig_period = 65535;
             }
             else if(BTN_FREQINC_press_timer >= BTN_DELAY_5000ms)
             {
-              if(pwm_sig_period < 65435) pwm_sig_period += 100;
+              if(pwm_sig_period < 65035) pwm_sig_period += 500;
+              else pwm_sig_period = 65535;
             }
             
-            pwm_sig_pulse = (1000*pwm_sig_pulse2period_ratio / pwm_sig_period);
+            pwm_sig_pulse = (pwm_sig_pulse2period_ratio * pwm_sig_period) / 1000;
             TIM_TimeBaseInitStruct.TIM_Period = pwm_sig_period;  // This parameter must be a number between 0x0000 and 0xFFFF, fclk=10k, 10000->T=1s
             TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
             TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
@@ -422,20 +429,27 @@ int main(void)
           }
           case Duty_Selected:
           {
-            if(BTN_FREQINC_press_timer > BTN_DELAY_1000ms && BTN_FREQINC_press_timer < BTN_DELAY_2500ms)  
+            if(BTN_FREQINC_press_timer < BTN_DELAY_1000ms)  
             {
               if(pwm_sig_pulse2period_ratio < 998) pwm_sig_pulse2period_ratio++;
             }
-            else if(BTN_FREQINC_press_timer >= BTN_DELAY_2500ms && BTN_FREQINC_press_timer < BTN_DELAY_5000ms)
+            else if(BTN_FREQINC_press_timer >= BTN_DELAY_1000ms && BTN_FREQINC_press_timer < BTN_DELAY_2500ms)
             {
               if(pwm_sig_pulse2period_ratio < 988) pwm_sig_pulse2period_ratio += 10;
+              else pwm_sig_pulse2period_ratio = 998;
+            }
+            else if(BTN_FREQINC_press_timer >= BTN_DELAY_2500ms && BTN_FREQINC_press_timer < BTN_DELAY_5000ms)
+            {
+              if(pwm_sig_pulse2period_ratio < 898) pwm_sig_pulse2period_ratio += 100;
+              else pwm_sig_pulse2period_ratio = 998;
             }
             else if(BTN_FREQINC_press_timer >= BTN_DELAY_5000ms)
             {
-              if(pwm_sig_pulse2period_ratio < 898) pwm_sig_pulse2period_ratio += 100;
+              if(pwm_sig_pulse2period_ratio < 798) pwm_sig_pulse2period_ratio += 200;
+              else pwm_sig_pulse2period_ratio = 998;
             }
             
-            pwm_sig_pulse = (1000*pwm_sig_pulse2period_ratio / pwm_sig_period);
+            pwm_sig_pulse = (pwm_sig_pulse2period_ratio * pwm_sig_period) / 1000;
             TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
             TIM_OC4Init(TIM2, &TIM_OCInitStruct);
             break;
@@ -443,11 +457,10 @@ int main(void)
           default: break;
         }
         
-        LCD_WriteString(LCD_CLEAR_ROW);
+        LCD_Clear();
         string_copy(lcd_row1, "  P=");
         string_append(lcd_row1, string_U32ToStr(pwm_sig_period, strtmp));
         string_append(lcd_row1, "us");
-        LCD_Move_Cursor(1, 0);
         LCD_WriteString(lcd_row1);
         string_copy(lcd_row2, "  tON=");
         string_append(lcd_row2, string_U32ToStr(pwm_sig_pulse, strtmp));
@@ -549,19 +562,26 @@ int main(void)
         {
           case Freq_Selected:
           {
-            if(BTN_FREQDEC_press_timer > BTN_DELAY_1000ms && BTN_FREQDEC_press_timer < BTN_DELAY_2500ms)  
+            if(BTN_FREQDEC_press_timer < BTN_DELAY_1000ms)  
             {
               if(pwm_sig_period > 2) pwm_sig_period--;
             }
-            else if(BTN_FREQDEC_press_timer >= BTN_DELAY_2500ms && BTN_FREQDEC_press_timer < BTN_DELAY_5000ms)
+            else if(BTN_FREQDEC_press_timer >= BTN_DELAY_1000ms && BTN_FREQDEC_press_timer < BTN_DELAY_2500ms)
             {
               if(pwm_sig_period > 12) pwm_sig_period -= 10;
+              else pwm_sig_period = 2;
+            }
+            else if(BTN_FREQDEC_press_timer >= BTN_DELAY_2500ms && BTN_FREQDEC_press_timer < BTN_DELAY_5000ms)
+            {
+              if(pwm_sig_period > 102) pwm_sig_period -= 100;
+              else pwm_sig_period = 2;
             }
             else if(BTN_FREQDEC_press_timer >= BTN_DELAY_5000ms)
             {
-              if(pwm_sig_period > 102) pwm_sig_period -= 100;
+              if(pwm_sig_period > 502) pwm_sig_period -= 500;
+              else pwm_sig_period = 2;
             }
-            pwm_sig_pulse = (1000*pwm_sig_pulse2period_ratio / pwm_sig_period);
+            pwm_sig_pulse = (pwm_sig_pulse2period_ratio * pwm_sig_period) / 1000;
             TIM_TimeBaseInitStruct.TIM_Period = pwm_sig_period;  // This parameter must be a number between 0x0000 and 0xFFFF, fclk=10k, 10000->T=1s
             TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
             TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
@@ -570,20 +590,27 @@ int main(void)
           }
           case Duty_Selected:
           {
-            if(BTN_FREQDEC_press_timer > BTN_DELAY_1000ms && BTN_FREQDEC_press_timer < BTN_DELAY_2500ms)  
+            if(BTN_FREQDEC_press_timer < BTN_DELAY_1000ms)  
             {
               if(pwm_sig_pulse2period_ratio > 1) pwm_sig_pulse2period_ratio--;
             }
-            else if(BTN_FREQDEC_press_timer >= BTN_DELAY_2500ms && BTN_FREQDEC_press_timer < BTN_DELAY_5000ms)
+            else if(BTN_FREQDEC_press_timer >= BTN_DELAY_1000ms && BTN_FREQDEC_press_timer < BTN_DELAY_2500ms)
             {
               if(pwm_sig_pulse2period_ratio > 11) pwm_sig_pulse2period_ratio -= 10;
+              else pwm_sig_pulse2period_ratio = 1;
+            }
+            else if(BTN_FREQDEC_press_timer >= BTN_DELAY_2500ms && BTN_FREQDEC_press_timer < BTN_DELAY_5000ms)
+            {
+              if(pwm_sig_pulse2period_ratio > 101) pwm_sig_pulse2period_ratio -= 100;
+              else pwm_sig_pulse2period_ratio = 1;
             }
             else if(BTN_FREQDEC_press_timer >= BTN_DELAY_5000ms)
             {
-              if(pwm_sig_pulse2period_ratio > 101) pwm_sig_pulse2period_ratio -= 100;
+              if(pwm_sig_pulse2period_ratio > 201) pwm_sig_pulse2period_ratio -= 200;
+              else pwm_sig_pulse2period_ratio = 1;
             }
             
-            pwm_sig_pulse = (1000*pwm_sig_pulse2period_ratio / pwm_sig_period);
+            pwm_sig_pulse = (pwm_sig_pulse2period_ratio * pwm_sig_period) / 1000;
             TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
             TIM_OC4Init(TIM2, &TIM_OCInitStruct);
             break;
@@ -591,11 +618,10 @@ int main(void)
           default: break;
         }
         
-        LCD_WriteString(LCD_CLEAR_ROW);
+        LCD_Clear();
         string_copy(lcd_row1, "  P=");
         string_append(lcd_row1, string_U32ToStr(pwm_sig_period, strtmp));
         string_append(lcd_row1, "us");
-        LCD_Move_Cursor(1, 0);
         LCD_WriteString(lcd_row1);
         string_copy(lcd_row2, "  tON=");
         string_append(lcd_row2, string_U32ToStr(pwm_sig_pulse, strtmp));

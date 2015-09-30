@@ -63,10 +63,6 @@ u16 cnt_flag_1000ms = 0;
 
 /* Buttons debouncing and repetition delay */
 #define DIG_IN_DEB_TIME   (u8)15    /* 30ms digital input debounce time */
-#define BTN_DELAY_300ms   (u8)150   /* 300ms */
-#define BTN_DELAY_1000ms  (u16)500  /* 1s */
-#define BTN_DELAY_2500ms  (u16)1250 /* 2.5s */
-#define BTN_DELAY_5000ms  (u16)2500 /* 5s */
 static u16 btn_freqinc_delay = BTN_DELAY_300ms;
 static u16 btn_freqdec_delay = BTN_DELAY_300ms;
 static u16 btn_freqduty_delay = BTN_DELAY_300ms;
