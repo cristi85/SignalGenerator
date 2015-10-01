@@ -27,7 +27,7 @@ void Config()
   Config_GPIO();
   Config_UART1();
   Config_TIM1();     /* Configure TIM1_CH1 as PWM output on PA8 (PWM1 Output) */
-  Config_TIM2();     /* Configure TIM2_CH4 as PWM output on PA3 (PWM2 Output) */
+  //Config_TIM2();     /* Configure TIM2_CH4 as PWM output on PA3 (PWM2 Output) */
   Config_TIM3();     /* Periodic 2ms interrupt */
   Config_TIM6();     /* Periodic DAC triggering */
   //Config_TIM14();
