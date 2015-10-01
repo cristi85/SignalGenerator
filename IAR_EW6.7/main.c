@@ -268,18 +268,33 @@ u16 ADC_Conv_Tab_Avg[ADC_Scan_Channels];
 void TASK_RFCommand(void);
 void TASK_UARTCommands(void);
 /* Private functions ---------------------------------------------------------*/
-
-u16 analog_sig_freq = 120;
-u16 analog_sig_freq_old = 0;
-u16 pwm_sig_period = 1000;
-u16 pwm_sig_pulse = 500;
-u16 pwm_sig_pulse2period_ratio = 500;  // 50% duty cycle
 typedef enum
 {
-  Freq_Selected = (u8)0x01,
-  Duty_Selected = (u8)0x02
+  Polarity_Positive = (u8)0x01,
+  Polarity_Negative = (u8)0x02
+}Pwm_Polarity_t;
+u16 analog_sig_freq = 120;
+u16 analog_sig_freq_old = 0;
+u16 pwm_period = 1000;
+u16 pwm_sig_pulse = 500;
+u16 pwm_duty = 500;  // 50% duty cycle
+u16 pwm_duty_old = pwm_duty;
+u32 pwm_freq = 0;
+u16 pwm_timebase = 48;  // 48Mhz/48=1us timebase
+u16 pwm_timebase_old = pwm_timebase;
+_Bool lcd_needs_update = FALSE;
+Pwm_Polarity_t pwm_polarity = Polarity_Positive;
+typedef enum
+{
+  Period_Selected     = (u8)0x01,
+  Duty_Selected     = (u8)0x02,
+  Timebase_Selected = (u8)0x03,
+  Polarity_Selected = (u8)0x04
 }Freq_Duty_t;
-Freq_Duty_t freq_duty_selection = Freq_Selected;
+Freq_Duty_t freq_duty_selection = Period_Selected;
+
+TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
+TIM_OCInitTypeDef TIM_OCInitStruct;
 
 int main(void)
 {
@@ -293,22 +308,36 @@ int main(void)
   TIM_OCInitTypeDef TIM_OCInitStruct;
   VrefINT_CAL = *ptr_VREFINT_CAL;
   Config();
-  Errors_Init();
   
-  SystemCoreClockUpdate();
+  RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
   
-  TIM_TimeBaseInitStruct.TIM_Prescaler = 47;                         // This parameter can be a number between 0x0000 and 0xFFFF
+  TIM_TimeBaseInitStruct.TIM_Prescaler = pwm_timebase - 1;           // Prescaler=48 (47+1), This parameter can be a number between 0x0000 and 0xFFFF
   TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;       // This parameter can be a value of @ref TIM_Counter_Mode
+  TIM_TimeBaseInitStruct.TIM_Period = pwm_period;                    // This parameter must be a number between 0x0000 and 0xFFFF, fclk=1M, 1000000->T=1s
   TIM_TimeBaseInitStruct.TIM_ClockDivision = TIM_CKD_DIV1;           // This parameter can be a value of @ref TIM_Clock_Division_CKD
   TIM_TimeBaseInitStruct.TIM_RepetitionCounter = 0;                  // This parameter is valid only for TIM1
+  TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
   
   TIM_OCInitStruct.TIM_OCMode = TIM_OCMode_PWM1;
   TIM_OCInitStruct.TIM_OutputState = TIM_OutputState_Enable;
   TIM_OCInitStruct.TIM_OutputNState = TIM_OutputNState_Disable;
-  TIM_OCInitStruct.TIM_OCPolarity = TIM_OCPolarity_High;
+  TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;                        // Duty cycle (compared to TIM_Period)
+  if(pwm_polarity == Polarity_Positive) 
+    TIM_OCInitStruct.TIM_OCPolarity = TIM_OCPolarity_High;
+  else if(pwm_polarity == Polarity_Negative) 
+    TIM_OCInitStruct.TIM_OCPolarity = TIM_OCPolarity_Low
   TIM_OCInitStruct.TIM_OCNPolarity = TIM_OCNPolarity_High;
   TIM_OCInitStruct.TIM_OCIdleState = TIM_OCIdleState_Reset;
   TIM_OCInitStruct.TIM_OCNIdleState = TIM_OCNIdleState_Reset;
+  TIM_OC4Init(TIM2, &TIM_OCInitStruct);
+  TIM_Cmd(TIM2, DISABLE);
+  TIM_CtrlPWMOutputs(TIM2, ENABLE);
+  
+  pwm_freq = (48000000 / pwm_timebase) / pwm_period;
+  
+  Errors_Init();
+  
+  SystemCoreClockUpdate();
   
   LCD_Initialize();
   LCD_Clear();
@@ -398,75 +427,132 @@ int main(void)
       {
         switch(freq_duty_selection)
         {
-          case Freq_Selected:
+          case Period_Selected:
           {
             if(BTN_FREQINC_press_timer < BTN_DELAY_1000ms)  
             {
-              if(pwm_sig_period < 65535) pwm_sig_period++;
+              if(pwm_period < 65535) pwm_period++;
             }
             else if(BTN_FREQINC_press_timer >= BTN_DELAY_1000ms && BTN_FREQINC_press_timer < BTN_DELAY_2500ms)
             {
-              if(pwm_sig_period < 65525) pwm_sig_period += 10;
-              else pwm_sig_period = 65535;
+              if(pwm_period < 65525) pwm_period += 10;
+              else pwm_period = 65535;
             }
             else if(BTN_FREQINC_press_timer >= BTN_DELAY_2500ms && BTN_FREQINC_press_timer < BTN_DELAY_5000ms)
             {
-              if(pwm_sig_period < 65435) pwm_sig_period += 100;
-              else pwm_sig_period = 65535;
+              if(pwm_period < 65435) pwm_period += 100;
+              else pwm_period = 65535;
             }
             else if(BTN_FREQINC_press_timer >= BTN_DELAY_5000ms)
             {
-              if(pwm_sig_period < 65035) pwm_sig_period += 500;
-              else pwm_sig_period = 65535;
+              if(pwm_period < 65035) pwm_period += 500;
+              else pwm_period = 65535;
             }
+            if(pwm_period != pwm_period_old)
+            {
+              pwm_sig_pulse = (pwm_duty * pwm_period) / 1000;
+              TIM_TimeBaseInitStruct.TIM_Period = pwm_period;  // This parameter must be a number between 0x0000 and 0xFFFF, fclk=10k, 10000->T=1s
+              TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
+              TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
+              TIM_OC4Init(TIM2, &TIM_OCInitStruct);
+              pwm_freq = (48000000 / pwm_timebase) / pwm_period;
+              lcd_needs_update = TRUE;
+            }
+            pwm_period_old = pwm_period;
             
-            pwm_sig_pulse = (pwm_sig_pulse2period_ratio * pwm_sig_period) / 1000;
-            TIM_TimeBaseInitStruct.TIM_Period = pwm_sig_period;  // This parameter must be a number between 0x0000 and 0xFFFF, fclk=10k, 10000->T=1s
-            TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
-            TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
-            TIM_OC4Init(TIM2, &TIM_OCInitStruct);
             break;
           }
           case Duty_Selected:
           {
             if(BTN_FREQINC_press_timer < BTN_DELAY_1000ms)  
             {
-              if(pwm_sig_pulse2period_ratio < 998) pwm_sig_pulse2period_ratio++;
+              if(pwm_duty < 998) pwm_duty++;
             }
             else if(BTN_FREQINC_press_timer >= BTN_DELAY_1000ms && BTN_FREQINC_press_timer < BTN_DELAY_2500ms)
             {
-              if(pwm_sig_pulse2period_ratio < 988) pwm_sig_pulse2period_ratio += 10;
-              else pwm_sig_pulse2period_ratio = 998;
+              if(pwm_duty < 988) pwm_duty += 10;
+              else pwm_duty = 998;
             }
             else if(BTN_FREQINC_press_timer >= BTN_DELAY_2500ms && BTN_FREQINC_press_timer < BTN_DELAY_5000ms)
             {
-              if(pwm_sig_pulse2period_ratio < 898) pwm_sig_pulse2period_ratio += 100;
-              else pwm_sig_pulse2period_ratio = 998;
+              if(pwm_duty < 898) pwm_duty += 100;
+              else pwm_duty = 998;
             }
             else if(BTN_FREQINC_press_timer >= BTN_DELAY_5000ms)
             {
-              if(pwm_sig_pulse2period_ratio < 798) pwm_sig_pulse2period_ratio += 200;
-              else pwm_sig_pulse2period_ratio = 998;
+              if(pwm_duty < 798) pwm_duty += 200;
+              else pwm_duty = 998;
             }
-            
-            pwm_sig_pulse = (pwm_sig_pulse2period_ratio * pwm_sig_period) / 1000;
-            TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
-            TIM_OC4Init(TIM2, &TIM_OCInitStruct);
+            if(pwm_duty != pwm_duty_old)
+            {
+              pwm_sig_pulse = (pwm_duty * pwm_period) / 1000;
+              TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
+              TIM_OC4Init(TIM2, &TIM_OCInitStruct);
+              lcd_needs_update = TRUE;
+            }
+            pwm_duty_old = pwm_duty;
             break;
+          }
+          case Timebase_Selected:
+          {
+            if(BTN_FREQINC_press_timer < BTN_DELAY_1000ms)  
+            {
+              if(pwm_timebase < 65534) pwm_timebase++;
+            }
+            else if(BTN_FREQINC_press_timer >= BTN_DELAY_1000ms && BTN_FREQINC_press_timer < BTN_DELAY_2500ms)
+            {
+              if(pwm_timebase < 65524) pwm_timebase += 10;
+              else pwm_timebase = 65534;
+            }
+            else if(BTN_FREQINC_press_timer >= BTN_DELAY_2500ms && BTN_FREQINC_press_timer < BTN_DELAY_5000ms)
+            {
+              if(pwm_timebase < 65434) pwm_timebase += 100;
+              else pwm_timebase = 65534;
+            }
+            else if(BTN_FREQINC_press_timer >= BTN_DELAY_5000ms)
+            {
+              if(pwm_timebase < 65334) pwm_timebase += 200;
+              else pwm_timebase = 65534;
+            }
+            if(pwm_timebase != pwm_timebase_old)
+            {
+              TIM_TimeBaseInitStruct.TIM_Prescaler = pwm_timebase; 
+              TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
+              pwm_freq = (48000000 / pwm_timebase) / pwm_period;
+              lcd_needs_update = TRUE;
+            }
+            pwm_timebase_old = pwm_timebase;
+            break;
+          }
+          case Polarity_Selected:
+          {
+            if(pwm_polarity == Polarity_Positive)
+            {
+            
+            }
+            else if(pwm_polarity == Polarity_Negative)
+            {
+            
+            }
           }
           default: break;
         }
-        
-        LCD_Clear();
-        string_copy(lcd_row1, "  P=");
-        string_append(lcd_row1, string_U32ToStr(pwm_sig_period, strtmp));
-        string_append(lcd_row1, "us");
-        LCD_WriteString(lcd_row1);
-        string_copy(lcd_row2, "  tON=");
-        string_append(lcd_row2, string_U32ToStr(pwm_sig_pulse, strtmp));
-        string_append(lcd_row2, "us");
-        LCD_Move_Cursor(2, 0);
-        LCD_WriteString(lcd_row2);
+        if(lcd_needs_update)
+        {
+          lcd_needs_update = FALSE;
+          LCD_Clear();
+          //string_copy(lcd_row1, "f=");
+          string_copy(lcd_row1, string_U32ToStr(pwm_freq, strtmp));
+          string_append(lcd_row1, "Hz");
+          LCD_WriteString(lcd_row1);
+          string_copy(lcd_row2, "  duty=");
+          string_append(lcd_row2, string_U32ToStr(pwm_duty/10, strtmp));
+          string_append(lcd_row2, ".");
+          string_append(lcd_row2, string_U32ToStr(pwm_duty%10, strtmp));
+          string_append(lcd_row2, "%");
+          LCD_Move_Cursor(2, 0);
+          LCD_WriteString(lcd_row2);
+        }
       }
     }
     /* ================ END PRESS BTN FREQ INC ================== */
@@ -560,29 +646,29 @@ int main(void)
       {
         switch(freq_duty_selection)
         {
-          case Freq_Selected:
+          case Period_Selected:
           {
             if(BTN_FREQDEC_press_timer < BTN_DELAY_1000ms)  
             {
-              if(pwm_sig_period > 2) pwm_sig_period--;
+              if(pwm_period > 2) pwm_period--;
             }
             else if(BTN_FREQDEC_press_timer >= BTN_DELAY_1000ms && BTN_FREQDEC_press_timer < BTN_DELAY_2500ms)
             {
-              if(pwm_sig_period > 12) pwm_sig_period -= 10;
-              else pwm_sig_period = 2;
+              if(pwm_period > 12) pwm_period -= 10;
+              else pwm_period = 2;
             }
             else if(BTN_FREQDEC_press_timer >= BTN_DELAY_2500ms && BTN_FREQDEC_press_timer < BTN_DELAY_5000ms)
             {
-              if(pwm_sig_period > 102) pwm_sig_period -= 100;
-              else pwm_sig_period = 2;
+              if(pwm_period > 102) pwm_period -= 100;
+              else pwm_period = 2;
             }
             else if(BTN_FREQDEC_press_timer >= BTN_DELAY_5000ms)
             {
-              if(pwm_sig_period > 502) pwm_sig_period -= 500;
-              else pwm_sig_period = 2;
+              if(pwm_period > 502) pwm_period -= 500;
+              else pwm_period = 2;
             }
-            pwm_sig_pulse = (pwm_sig_pulse2period_ratio * pwm_sig_period) / 1000;
-            TIM_TimeBaseInitStruct.TIM_Period = pwm_sig_period;  // This parameter must be a number between 0x0000 and 0xFFFF, fclk=10k, 10000->T=1s
+            pwm_sig_pulse = (pwm_duty * pwm_period) / 1000;
+            TIM_TimeBaseInitStruct.TIM_Period = pwm_period;  // This parameter must be a number between 0x0000 and 0xFFFF, fclk=10k, 10000->T=1s
             TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
             TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
             TIM_OC4Init(TIM2, &TIM_OCInitStruct);
@@ -592,25 +678,25 @@ int main(void)
           {
             if(BTN_FREQDEC_press_timer < BTN_DELAY_1000ms)  
             {
-              if(pwm_sig_pulse2period_ratio > 1) pwm_sig_pulse2period_ratio--;
+              if(pwm_duty > 1) pwm_duty--;
             }
             else if(BTN_FREQDEC_press_timer >= BTN_DELAY_1000ms && BTN_FREQDEC_press_timer < BTN_DELAY_2500ms)
             {
-              if(pwm_sig_pulse2period_ratio > 11) pwm_sig_pulse2period_ratio -= 10;
-              else pwm_sig_pulse2period_ratio = 1;
+              if(pwm_duty > 11) pwm_duty -= 10;
+              else pwm_duty = 1;
             }
             else if(BTN_FREQDEC_press_timer >= BTN_DELAY_2500ms && BTN_FREQDEC_press_timer < BTN_DELAY_5000ms)
             {
-              if(pwm_sig_pulse2period_ratio > 101) pwm_sig_pulse2period_ratio -= 100;
-              else pwm_sig_pulse2period_ratio = 1;
+              if(pwm_duty > 101) pwm_duty -= 100;
+              else pwm_duty = 1;
             }
             else if(BTN_FREQDEC_press_timer >= BTN_DELAY_5000ms)
             {
-              if(pwm_sig_pulse2period_ratio > 201) pwm_sig_pulse2period_ratio -= 200;
-              else pwm_sig_pulse2period_ratio = 1;
+              if(pwm_duty > 201) pwm_duty -= 200;
+              else pwm_duty = 1;
             }
             
-            pwm_sig_pulse = (pwm_sig_pulse2period_ratio * pwm_sig_period) / 1000;
+            pwm_sig_pulse = (pwm_duty * pwm_period) / 1000;
             TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
             TIM_OC4Init(TIM2, &TIM_OCInitStruct);
             break;
@@ -620,7 +706,7 @@ int main(void)
         
         LCD_Clear();
         string_copy(lcd_row1, "  P=");
-        string_append(lcd_row1, string_U32ToStr(pwm_sig_period, strtmp));
+        string_append(lcd_row1, string_U32ToStr(pwm_period, strtmp));
         string_append(lcd_row1, "us");
         LCD_WriteString(lcd_row1);
         string_copy(lcd_row2, "  tON=");
@@ -638,14 +724,24 @@ int main(void)
       BTN_FREQDUTY_DELAY_FLAG = FALSE;
       switch(freq_duty_selection)
       {
-        case Freq_Selected:
+        case Period_Selected:
         {
           freq_duty_selection = Duty_Selected;
           break;
         }
         case Duty_Selected:
         {
-          freq_duty_selection = Freq_Selected;
+          freq_duty_selection = Timebase_Selected;
+          break;
+        }
+        case Timebase_Selected:
+        {
+          freq_duty_selection = Polarity_Selected;
+          break;
+        }
+        case Polarity_Selected:
+        {
+          freq_duty_selection = Period_Selected;
           break;
         }
         default: break;
@@ -683,6 +779,7 @@ int main(void)
           LCD_Clear();
           LCD_WriteString("    SAWTOOTH    ");
           TIM_Cmd(TIM6, ENABLE);
+          TIM_Cmd(TIM2, DISABLE);
           if(analog_sig_freq <= 628)
           {
             DMA1_Channel3->CMAR = (u32)(&SawTooth12bit130);
@@ -700,6 +797,7 @@ int main(void)
           LCD_Clear();
           LCD_WriteString("    TRIANGLE    ");
           TIM_Cmd(TIM6, ENABLE);
+          TIM_Cmd(TIM2, DISABLE);
           if(analog_sig_freq <= 628)
           {
             DMA1_Channel3->CMAR = (u32)(&Triang12bit130);
@@ -717,6 +815,7 @@ int main(void)
           LCD_Clear();
           LCD_WriteString("      SINC      ");
           TIM_Cmd(TIM6, ENABLE);
+          TIM_Cmd(TIM2, DISABLE);
           if(analog_sig_freq <= 628)
           {
             DMA1_Channel3->CMAR = (u32)(&SinCard12bit130);
@@ -735,7 +834,7 @@ int main(void)
           LCD_WriteString("      PWM      ");
           // stop dma, start pwm generation
           TIM_Cmd(TIM6, DISABLE);
-          
+          TIM_Cmd(TIM2, ENABLE);
           break;
         }
         default:
