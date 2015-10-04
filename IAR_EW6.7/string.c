@@ -89,8 +89,16 @@ Return:
 */
 char* string_U32ToStr(u32 number, char* dest) //dest len=11 for max u32
 {
-  u32 tmp = number;
-  u8 i = 9, j =0, k = 0;
+  u32 tmp;
+  u8 i, j, k;
+  if(number == 0)
+  { 
+    dest[0] = '0';
+    dest[1] = 0;
+    return dest;
+  }
+  tmp = number;
+  i=9;j=0;k=0;
   while(tmp)
   {
     dest[i--] = tmp%10+'0';

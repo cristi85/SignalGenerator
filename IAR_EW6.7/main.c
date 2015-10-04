@@ -261,11 +261,12 @@ const u16* ptr_VREFINT_CAL = (u16*)VREFINT_CAL;
 u16 VrefINT_CAL; 
 
 static char lcd_row1[17], lcd_row2[17];
-static char lcd_row1_L[9], lcd_row1_R[9];
-static char lcd_row2_L[9], lcd_row2_R[9];
 #define LCD_CLEAR_ROW     "                "
 #define LCD_CLEAR_HALFROW "        "
-
+#define PWM_PERIOD_START  (u16)1000
+#define PWM_ONTIME_START  (u16)500
+#define PWM_DUTY_START    (u16)500     //50% duty cycle
+#define PWM_TBASE_START   (u16)48      // 48Mhz/48=1us timebase
 Screen_t Current_Screen = Screen_Sin;
 u16 ADC_Conv_Tab_Avg[ADC_Scan_Channels];
 /* Private function prototypes -----------------------------------------------*/
@@ -279,13 +280,15 @@ typedef enum
 }Pwm_Polarity_t;
 u16 analog_sig_freq = 120;
 u16 analog_sig_freq_old = 0;
-u16 pwm_period = 1000;
-u16 pwm_sig_pulse = 500;
-u16 pwm_duty = 500;   //50% duty cycle
-u16 pwm_duty_old = pwm_duty;
+u16 pwm_period = PWM_PERIOD_START;
+u16 pwm_period_old = PWM_PERIOD_START;
+u16 pwm_sig_pulse = PWM_ONTIME_START;
+u16 pwm_duty = PWM_DUTY_START;   
+u16 pwm_duty_old = PWM_DUTY_START;
+u16 pwm_ontime = 0;
 u32 pwm_freq = 0;
-u16 pwm_timebase = 48;  // 48Mhz/48=1us timebase
-u16 pwm_timebase_old = pwm_timebase;
+u16 pwm_timebase = PWM_TBASE_START;  
+u16 pwm_timebase_old = PWM_TBASE_START;
 Pwm_Polarity_t pwm_polarity = Polarity_Positive;
 typedef enum
 {
@@ -309,10 +312,10 @@ LCD_Update_t LCD_Update = LCD_Update_NO_UPDATE;
 TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
 TIM_OCInitTypeDef TIM_OCInitStruct;
 
-void Convert2String_PWM_freq(uint16 * const _pwm_freq, char * _out_string);
-void Convert2String_PWM_duty(uint16 * const _pwm_duty, char * _out_string);
-void Convert2String_PWM_period(uint16 * const _pwm_period, char * _out_string);
-void Convert2String_PWM_ontime(uint16 * const _pwm_ontime, char * _out_string);
+void Convert2String_PWM_freq(u32 * const _pwm_freq, char * _out_string);
+void Convert2String_PWM_duty(u16 * const _pwm_duty, char * _out_string);
+void Convert2String_PWM_period(u16 * const _pwm_period, char * _out_string);
+void Convert2String_PWM_ontime(u16 * const _pwm_ontime, char * _out_string);
 
 int main(void)
 {
@@ -343,7 +346,7 @@ int main(void)
   if(pwm_polarity == Polarity_Positive) 
     TIM_OCInitStruct.TIM_OCPolarity = TIM_OCPolarity_High;
   else if(pwm_polarity == Polarity_Negative) 
-    TIM_OCInitStruct.TIM_OCPolarity = TIM_OCPolarity_Low
+    TIM_OCInitStruct.TIM_OCPolarity = TIM_OCPolarity_Low;
   TIM_OCInitStruct.TIM_OCNPolarity = TIM_OCNPolarity_High;
   TIM_OCInitStruct.TIM_OCIdleState = TIM_OCIdleState_Reset;
   TIM_OCInitStruct.TIM_OCNIdleState = TIM_OCNIdleState_Reset;
@@ -367,6 +370,7 @@ int main(void)
     /* ============== PRESS BTN FREQ INC ================= */
     if(BTN_FREQINC_DEB_STATE == BTN_PRESSED && BTN_FREQINC_DELAY_FLAG)
     {
+      char strtmp[11];
       BTN_FREQINC_DELAY_FLAG = FALSE;
       switch(Current_Screen)
       {
@@ -563,38 +567,6 @@ int main(void)
             }
             default: break;
           }
-          if(LCD_Update)
-          {
-            if(LCD_Update & LCD_Update_PWM_freq)
-            {
-              LCD_Move_Cursor(1, 0);
-              LCD_WriteString(LCD_CLEAR_HALFROW);
-              Convert2String_PWM_freq(&pwm_freq, lcd_row1_L);
-              LCD_WriteString(lcd_row1_L);
-            }
-            if(LCD_Update & LCD_Update_PWM_duty)
-            {
-              LCD_Move_Cursor(1, 8);
-              LCD_WriteString(LCD_CLEAR_HALFROW);
-              Convert2String_PWM_duty(&pwm_duty, lcd_row1_R);
-              LCD_WriteString(lcd_row1_R);
-            }
-            if(LCD_Update & LCD_Update_PWM_period)
-            {
-              LCD_Move_Cursor(2, 0);
-              LCD_WriteString(LCD_CLEAR_HALFROW);
-              
-              LCD_WriteString(lcd_row2_L);
-            }
-            if(LCD_Update & LCD_Update_PWM_ontime)
-            {
-              LCD_Move_Cursor(2, 8);
-              LCD_WriteString(LCD_CLEAR_HALFROW);
-              
-              LCD_WriteString(lcd_row2_R);
-            }
-            LCD_Update = LCD_Update_NO_UPDATE;
-          }
           break;
         }
       }
@@ -604,6 +576,7 @@ int main(void)
     /* ============== PRESS BTN FREQ DEC ================= */
     if(BTN_FREQDEC_DEB_STATE == BTN_PRESSED && BTN_FREQDEC_DELAY_FLAG)
     {
+      char strtmp[11];
       BTN_FREQDEC_DELAY_FLAG = FALSE;
       if(analog_sig_freq <= 875)  /* generated frequency < 876Hz */
       {
@@ -873,11 +846,15 @@ int main(void)
         }
         case Screen_PWM:
         {
-          LCD_Clear();
-          LCD_WriteString("      PWM      ");
+          //LCD_Clear();
+          //LCD_WriteString("      PWM      ");
           // stop dma, start pwm generation
           TIM_Cmd(TIM6, DISABLE);
           TIM_Cmd(TIM2, ENABLE);
+          LCD_Update |= LCD_Update_PWM_freq;
+          LCD_Update |= LCD_Update_PWM_duty;
+          LCD_Update |= LCD_Update_PWM_period;
+          LCD_Update |= LCD_Update_PWM_ontime;
           break;
         }
         default:
@@ -888,6 +865,35 @@ int main(void)
       DMA_Cmd(DMA1_Channel3, ENABLE);
     }
     /* ================ END PRESS BTN CHG WAVE ================== */
+    
+    /* ============== LCD UPDATE CHECK ================= */
+    if(LCD_Update)
+    {
+      switch(Current_Screen)
+      {
+        case Screen_Sin:
+        case Screen_Sawtooth:
+        case Screen_Triang:
+        case Screen_Sinc:
+        {
+          break;
+        }
+        case Screen_PWM:
+        {
+          LCD_Home();
+          Convert2String_PWM_freq(&pwm_freq, lcd_row1);  //LCD row1 left
+          Convert2String_PWM_duty(&pwm_duty, lcd_row1);  //LCD row1 right
+          Convert2String_PWM_period(&pwm_period, lcd_row2);
+          Convert2String_PWM_ontime(&pwm_ontime, lcd_row2);
+          LCD_WriteString(lcd_row1);
+          LCD_WriteString(lcd_row2);
+          break;
+        }
+        default: break;
+      }
+      LCD_Update = LCD_Update_NO_UPDATE;
+    }
+    /* ============== END LCD UPDATE CHECK ================= */
     
     // ================== TASK cyclic 1000ms ===================
     if(FLAG_1000ms)
@@ -951,44 +957,48 @@ int main(void)
   }
 }
 
-void Convert2String_PWM_freq(uint16 * const _pwm_freq, char * _out_string)
+void Convert2String_PWM_freq(u32 * const _pwm_freq, char * _out_string)
 {
   char l_strtmp[11];
-  if(_pwm_freq < 1000)
+  // pwm freq will be displayed on row1 leftside
+  string_copy(_out_string, LCD_CLEAR_HALFROW);  // clear old information
+  if(*_pwm_freq < 1000)
   {
-    string_copy(_out_string, string_U32ToStr(_pwm_freq, l_strtmp));
-    string_append(_out_string, "Hz");
+    string_copy(_out_string, string_U32ToStr(*_pwm_freq, l_strtmp));
+    string_append(_out_string, "Hz    ");
   }
-  else if(_pwm_freq >= 1000 && _pwm_freq < 1000000)  // 1.000KHz - 999.999KHz
+  else if(*_pwm_freq >= 1000 && *_pwm_freq < 1000000)  // 1.000KHz - 999.999KHz
   {
-    string_copy(_out_string, string_U32ToStr(_pwm_freq/1000, l_strtmp));
+    string_copy(_out_string, string_U32ToStr((*_pwm_freq)/1000, l_strtmp));
     string_append(_out_string, ".");
-    string_append(_out_string, string_U32ToStr((_pwm_freq%1000), l_strtmp));
-    string_append(_out_string, "K");
+    string_append(_out_string, string_U32ToStr(((*_pwm_freq)%1000), l_strtmp));
+    string_append(_out_string, "K    ");
   }
-  else if(_pwm_freq >= 1000000 && _pwm_freq < 1000000000)  // 1.000Mhz - 999.999Mhz
+  else if((*_pwm_freq) >= 1000000 && (*_pwm_freq) < 1000000000)  // 1.000Mhz - 999.999Mhz
   {
-    string_copy(_out_string, string_U32ToStr(_pwm_freq/1000000, l_strtmp));
+    string_copy(_out_string, string_U32ToStr((*_pwm_freq)/1000000, l_strtmp));
     string_append(_out_string, ".");
-    string_append(_out_string, string_U32ToStr((_pwm_freq%1000000)/1000, l_strtmp));
-    string_append(_out_string, "M");
+    string_append(_out_string, string_U32ToStr(((*_pwm_freq)%1000000)/1000, l_strtmp));
+    string_append(_out_string, "M    ");
   }
 }
 
-void Convert2String_PWM_duty(uint16 * const _pwm_duty, char * _out_string)
+void Convert2String_PWM_duty(u16 * const _pwm_duty, char * _out_string)
 {
   char l_strtmp[11];
-  string_copy(_out_string, string_U32ToStr(_pwm_duty/10, l_strtmp));
-  string_append(_out_string, ".");
-  string_append(_out_string, string_U32ToStr(pwm_duty%10, strtmp));
-  string_append(_out_string, "%");
+  // pwm freq will be displayed on row1 rightside
+  string_copy(&(_out_string[8]), LCD_CLEAR_HALFROW);  // clear old information
+  string_copy(&(_out_string[8]), string_U32ToStr((*_pwm_duty)/10, l_strtmp));
+  string_append(&(_out_string[8]), ".");
+  string_append(&(_out_string[8]), string_U32ToStr((*_pwm_duty)%10, l_strtmp));
+  string_append(&(_out_string[8]), "%");
 }
 
-void Convert2String_PWM_period(uint16 * const _pwm_period, char * _out_string)
+void Convert2String_PWM_period(u16 * const _pwm_period, char * _out_string)
 {
-  char   l_strtmp[11];
-  uint32 l_pwm_period = pwm_period;
-  u8     l_period_mul_factor = 0
+  //char   l_strtmp[11];
+  u32 l_pwm_period = pwm_period;
+  u8     l_period_mul10_factor = 0;
   if     (l_pwm_period <=         4) {l_pwm_period *= 1000000000;l_period_mul10_factor = 9;}
   else if(l_pwm_period <=        42) {l_pwm_period *= 100000000; l_period_mul10_factor = 8;}
   else if(l_pwm_period <=       429) {l_pwm_period *= 10000000;  l_period_mul10_factor = 7;}
@@ -1001,9 +1011,9 @@ void Convert2String_PWM_period(uint16 * const _pwm_period, char * _out_string)
   l_pwm_period = l_pwm_period / (48000000/pwm_timebase);
 }
 
-void Convert2String_PWM_ontime(uint16 * const _pwm_ontime, char * _out_string)
+void Convert2String_PWM_ontime(u16 * const _pwm_ontime, char * _out_string)
 {
-  char l_strtmp[11];
+  //char l_strtmp[11];
   
 }
 

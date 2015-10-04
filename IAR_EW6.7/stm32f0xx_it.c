@@ -63,6 +63,9 @@ u16 cnt_flag_1000ms = 0;
 
 /* Buttons debouncing and repetition delay */
 #define DIG_IN_DEB_TIME   (u8)15    /* 30ms digital input debounce time */
+#define BTN_REPEAT_4 (u16)125
+#define BTN_REPEAT_6 (u16)83
+#define BTN_REPEAT_8 (u16)62
 static u16 btn_freqinc_delay = BTN_DELAY_300ms;
 static u16 btn_freqdec_delay = BTN_DELAY_300ms;
 static u16 btn_freqduty_delay = BTN_DELAY_300ms;
@@ -356,19 +359,19 @@ void TIM3_IRQHandler(void)
     {
       if(BTN_FREQINC_press_timer < U16_MAX) BTN_FREQINC_press_timer++;
       if(BTN_FREQINC_press_timer > BTN_DELAY_1000ms &&\
-         BTN_FREQINC_press_timer < BTN_DELAY_2500ms)          btn_freqinc_delay = 50;  //10times/s
+         BTN_FREQINC_press_timer < BTN_DELAY_2500ms)          btn_freqinc_delay = BTN_REPEAT_4;
       else if(BTN_FREQINC_press_timer >= BTN_DELAY_2500ms &&\
-         BTN_FREQINC_press_timer < BTN_DELAY_5000ms)          btn_freqinc_delay = 25;  //20 times/s
-      else if(BTN_FREQINC_press_timer >= BTN_DELAY_5000ms)    btn_freqinc_delay = 10;  //100 times/s
+         BTN_FREQINC_press_timer < BTN_DELAY_5000ms)          btn_freqinc_delay = BTN_REPEAT_6;
+      else if(BTN_FREQINC_press_timer >= BTN_DELAY_5000ms)    btn_freqinc_delay = BTN_REPEAT_8;
     }
     if(BTN_FREQDEC_DEB_STATE == BTN_PRESSED)
     {
       if(BTN_FREQDEC_press_timer < U16_MAX) BTN_FREQDEC_press_timer++;
       if(BTN_FREQDEC_press_timer > BTN_DELAY_1000ms && \
-         BTN_FREQDEC_press_timer < BTN_DELAY_2500ms)       btn_freqdec_delay = 50;  //10times/s
+         BTN_FREQDEC_press_timer < BTN_DELAY_2500ms)       btn_freqdec_delay = BTN_REPEAT_4;
       else if(BTN_FREQDEC_press_timer >= BTN_DELAY_2500ms && \
-         BTN_FREQDEC_press_timer < BTN_DELAY_5000ms)       btn_freqdec_delay = 25;  //20 times/s
-      else if(BTN_FREQDEC_press_timer >= BTN_DELAY_5000ms) btn_freqdec_delay = 10; //100 times/s
+         BTN_FREQDEC_press_timer < BTN_DELAY_5000ms)       btn_freqdec_delay = BTN_REPEAT_6;
+      else if(BTN_FREQDEC_press_timer >= BTN_DELAY_5000ms) btn_freqdec_delay = BTN_REPEAT_8;
     }
     if(BTN_FREQDUTY_DEB_STATE == BTN_PRESSED)
     {
