@@ -71,6 +71,24 @@ char* string_append(char* dest, const char* src)
 
 /* 
 Function name:
+    string_append_spaceterm
+Description:
+    Append to dest string the contents of src string, ' ' is considered string terminator
+Parameters:
+    dest - Pointer to destination string
+    src  - Pointer to source string
+Return:
+    char* - Pointer to destination string
+*/
+char* string_append_spaceterm(char* dest, const char* src)
+{
+  while(*(dest) != ' ') dest++;
+  while(*(src)) *(dest++) = *(src++);
+  return dest;
+}
+
+/* 
+Function name:
     string_substr
 Description:
     Get substring of scr in dest
