@@ -7,6 +7,7 @@ char* string_U32ToStr(u32, char*);
 char* string_copy(char*, const char*);
 char* string_copy_noterm(char* dest, const char* src);
 char* string_append(char*, const char*);
+char* string_append_spaceterm(char* dest, const char* src);
 char* string_substr(char*, const char*, u8, u8);
 u8 string_len(const char*);
 
