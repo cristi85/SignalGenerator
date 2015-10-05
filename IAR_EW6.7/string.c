@@ -35,6 +35,23 @@ char* string_copy(char* dest, const char* src)
 
 /* 
 Function name:
+    string_copy_noterm
+Description:
+    Copy contents of src string to dest string without string terminator (\0)
+Parameters:
+    dest - Pointer to destination string
+    src  - Pointer to source string
+Return:
+    char* - Pointer to destination string
+*/
+char* string_copy_noterm(char* dest, const char* src)
+{
+  while(*(src)) *(dest++) = *(src++);
+  return dest;
+}
+
+/* 
+Function name:
     string_append
 Description:
     Append to dest string the contents of src string
