@@ -260,9 +260,13 @@ extern u8 STM_Clk_Src;
 const u16* ptr_VREFINT_CAL = (u16*)VREFINT_CAL;
 u16 VrefINT_CAL; 
 
-static char lcd_row1[17], lcd_row2[17];
 #define LCD_CLEAR_ROW     "                "
 #define LCD_CLEAR_HALFROW "        "
+#define LCD_CLEAR_DUTY    "       "
+
+static char lcd_row1[17] = LCD_CLEAR_ROW;
+static char lcd_row2[17] = LCD_CLEAR_ROW;
+
 #define PWM_PERIOD_START  (u16)1000
 #define PWM_ONTIME_START  (u16)500
 #define PWM_DUTY_START    (u16)500     //50% duty cycle
@@ -282,10 +286,11 @@ u16 analog_sig_freq = 120;
 u16 analog_sig_freq_old = 0;
 u16 pwm_period = PWM_PERIOD_START;
 u16 pwm_period_old = PWM_PERIOD_START;
+u32 pwm_period_real = 0;
+u32 pwm_ontime_real = 0;
 u16 pwm_sig_pulse = PWM_ONTIME_START;
 u16 pwm_duty = PWM_DUTY_START;   
 u16 pwm_duty_old = PWM_DUTY_START;
-u16 pwm_ontime = 0;
 u32 pwm_freq = 0;
 u16 pwm_timebase = PWM_TBASE_START;  
 u16 pwm_timebase_old = PWM_TBASE_START;
@@ -301,21 +306,22 @@ Freq_Duty_t freq_duty_selection = Period_Selected;
 
 typedef enum
 {
-  LCD_Update_NO_UPDATE  = (u8)0x00,
-  LCD_Update_PWM_freq   = (u8)0x01,
-  LCD_Update_PWM_duty   = (u8)0x02,
-  LCD_Update_PWM_period = (u8)0x04,
-  LCD_Update_PWM_ontime = (u8)0x08
+  LCD_Update_NO_UPDATE    = (u8)0x00,
+  LCD_Update_PWM_freq     = (u8)0x01,
+  LCD_Update_PWM_duty     = (u8)0x02,
+  LCD_Update_PWM_period   = (u8)0x04,
+  LCD_Update_PWM_ontime   = (u8)0x08,
+  LCD_Update_PWM_modifier = (u8)0x10
 }LCD_Update_t;
 LCD_Update_t LCD_Update = LCD_Update_NO_UPDATE;
 
 TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
 TIM_OCInitTypeDef TIM_OCInitStruct;
 
-void Convert2String_PWM_freq(u32 * const _pwm_freq, char * _out_string);
-void Convert2String_PWM_duty(u16 * const _pwm_duty, char * _out_string);
-void Convert2String_PWM_period(u16 * const _pwm_period, char * _out_string);
-void Convert2String_PWM_ontime(u16 * const _pwm_ontime, char * _out_string);
+void Convert2String_PWM_freq(u32 _pwm_freq, char * _out_string);
+void Convert2String_PWM_duty(u16 _pwm_duty, char * _out_string);
+void Convert2String_PWM_period(u16 _pwm_period, char * _out_string);
+void Convert2String_PWM_ontime(u16 _pwm_ontime, char * _out_string);
 
 int main(void)
 {
@@ -516,6 +522,7 @@ int main(void)
                 TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
                 TIM_OC4Init(TIM2, &TIM_OCInitStruct);
                 LCD_Update |= LCD_Update_PWM_duty;
+                LCD_Update |= LCD_Update_PWM_ontime;
               }
               pwm_duty_old = pwm_duty;
               break;
@@ -558,12 +565,13 @@ int main(void)
             {
               if(pwm_polarity == Polarity_Positive)
               {
-            
+                TIM_OCInitStruct.TIM_OCPolarity = TIM_OCPolarity_High;
               }
               else if(pwm_polarity == Polarity_Negative)
               {
-            
+                TIM_OCInitStruct.TIM_OCPolarity = TIM_OCPolarity_Low;
               }
+              TIM_OC4Init(TIM2, &TIM_OCInitStruct);
             }
             default: break;
           }
@@ -738,26 +746,35 @@ int main(void)
     if(BTN_FREQDUTY_DEB_STATE == BTN_PRESSED && BTN_FREQDUTY_DELAY_FLAG)
     {
       BTN_FREQDUTY_DELAY_FLAG = FALSE;
-      switch(freq_duty_selection)
+      switch(Current_Screen)
       {
-        case Period_Selected:
+        case Screen_PWM:
         {
-          freq_duty_selection = Duty_Selected;
-          break;
-        }
-        case Duty_Selected:
-        {
-          freq_duty_selection = Timebase_Selected;
-          break;
-        }
-        case Timebase_Selected:
-        {
-          freq_duty_selection = Polarity_Selected;
-          break;
-        }
-        case Polarity_Selected:
-        {
-          freq_duty_selection = Period_Selected;
+          switch(freq_duty_selection)
+          {
+            case Period_Selected:
+            {
+              freq_duty_selection = Duty_Selected;
+              break;
+            }
+            case Duty_Selected:
+            {
+              freq_duty_selection = Timebase_Selected;
+              break;
+            }
+            case Timebase_Selected:
+            {
+              freq_duty_selection = Polarity_Selected;
+              break;
+            }
+            case Polarity_Selected:
+            {
+              freq_duty_selection = Period_Selected;
+              break;
+            }
+            default: break;
+          }
+          LCD_Update = LCD_Update_PWM_modifier;
           break;
         }
         default: break;
@@ -846,8 +863,6 @@ int main(void)
         }
         case Screen_PWM:
         {
-          //LCD_Clear();
-          //LCD_WriteString("      PWM      ");
           // stop dma, start pwm generation
           TIM_Cmd(TIM6, DISABLE);
           TIM_Cmd(TIM2, ENABLE);
@@ -855,6 +870,7 @@ int main(void)
           LCD_Update |= LCD_Update_PWM_duty;
           LCD_Update |= LCD_Update_PWM_period;
           LCD_Update |= LCD_Update_PWM_ontime;
+          LCD_Update |= LCD_Update_PWM_modifier;
           break;
         }
         default:
@@ -881,10 +897,11 @@ int main(void)
         case Screen_PWM:
         {
           LCD_Home();
-          Convert2String_PWM_freq(&pwm_freq, lcd_row1);  //LCD row1 left
-          Convert2String_PWM_duty(&pwm_duty, lcd_row1);  //LCD row1 right
-          Convert2String_PWM_period(&pwm_period, lcd_row2);
-          Convert2String_PWM_ontime(&pwm_ontime, lcd_row2);
+          if(LCD_Update & LCD_Update_PWM_freq)     Convert2String_PWM_freq(pwm_freq, lcd_row1);
+          if(LCD_Update & LCD_Update_PWM_duty)     Convert2String_PWM_duty(pwm_duty, lcd_row1);
+          if(LCD_Update & LCD_Update_PWM_period)   Convert2String_PWM_period(pwm_period, lcd_row2);
+          if(LCD_Update & LCD_Update_PWM_ontime)   Convert2String_PWM_ontime(pwm_sig_pulse, lcd_row2);
+          if(LCD_Update & LCD_Update_PWM_modifier) Convert2String_PWM_modifier(freq_duty_selection, lcd_row1);
           LCD_WriteString(lcd_row1);
           LCD_WriteString(lcd_row2);
           break;
@@ -957,64 +974,240 @@ int main(void)
   }
 }
 
-void Convert2String_PWM_freq(u32 * const _pwm_freq, char * _out_string)
+void Convert2String_PWM_freq(u32 _pwm_freq, char * _out_string)
 {
   char l_strtmp[11];
   // pwm freq will be displayed on row1 leftside
-  string_copy(_out_string, LCD_CLEAR_HALFROW);  // clear old information
-  if(*_pwm_freq < 1000)
+  string_copy_noterm(_out_string, LCD_CLEAR_HALFROW);  // clear old information
+  if(_pwm_freq < 1000)
   {
-    string_copy(_out_string, string_U32ToStr(*_pwm_freq, l_strtmp));
-    string_append(_out_string, "Hz    ");
+    string_copy_noterm(_out_string, string_U32ToStr(_pwm_freq, l_strtmp));
+    string_append_spaceterm(_out_string, "Hz");
   }
-  else if(*_pwm_freq >= 1000 && *_pwm_freq < 1000000)  // 1.000KHz - 999.999KHz
+  else if(_pwm_freq >= 1000 && _pwm_freq < 1000000)  // 1.000KHz - 999.999KHz
   {
-    string_copy(_out_string, string_U32ToStr((*_pwm_freq)/1000, l_strtmp));
-    string_append(_out_string, ".");
-    string_append(_out_string, string_U32ToStr(((*_pwm_freq)%1000), l_strtmp));
-    string_append(_out_string, "K    ");
+    string_copy_noterm(_out_string, string_U32ToStr((_pwm_freq)/1000, l_strtmp));
+    string_append_spaceterm(_out_string, ".");
+    string_append_spaceterm(_out_string, string_U32ToStr(((_pwm_freq)%1000), l_strtmp));
+    string_append_spaceterm(_out_string, "K");
   }
-  else if((*_pwm_freq) >= 1000000 && (*_pwm_freq) < 1000000000)  // 1.000Mhz - 999.999Mhz
+  else if((_pwm_freq) >= 1000000 && (_pwm_freq) < 1000000000)  // 1.000Mhz - 999.999Mhz
   {
-    string_copy(_out_string, string_U32ToStr((*_pwm_freq)/1000000, l_strtmp));
-    string_append(_out_string, ".");
-    string_append(_out_string, string_U32ToStr(((*_pwm_freq)%1000000)/1000, l_strtmp));
-    string_append(_out_string, "M    ");
+    string_copy_noterm(_out_string, string_U32ToStr((_pwm_freq)/1000000, l_strtmp));
+    string_append_spaceterm(_out_string, ".");
+    string_append_spaceterm(_out_string, string_U32ToStr(((_pwm_freq)%1000000)/1000, l_strtmp));
+    string_append_spaceterm(_out_string, "M");
   }
 }
 
-void Convert2String_PWM_duty(u16 * const _pwm_duty, char * _out_string)
+void Convert2String_PWM_duty(_pwm_duty, char * _out_string)
 {
   char l_strtmp[11];
+  u8 l_tmp = _pwm_duty/10;
+  u8 l_startstr_idx;
   // pwm freq will be displayed on row1 rightside
-  string_copy(&(_out_string[8]), LCD_CLEAR_HALFROW);  // clear old information
-  string_copy(&(_out_string[8]), string_U32ToStr((*_pwm_duty)/10, l_strtmp));
-  string_append(&(_out_string[8]), ".");
-  string_append(&(_out_string[8]), string_U32ToStr((*_pwm_duty)%10, l_strtmp));
-  string_append(&(_out_string[8]), "%");
+  string_copy_noterm(&(_out_string[8]), LCD_CLEAR_DUTY);  // clear old information
+  if(l_tmp < 10) 
+  {
+    string_copy_noterm(&(_out_string[10]), string_U32ToStr(l_tmp, l_strtmp));
+    l_startstr_idx = 10;
+  }
+  else
+  {
+    string_copy_noterm(&(_out_string[9]),  string_U32ToStr(l_tmp, l_strtmp));
+    l_startstr_idx = 9;
+  }
+  string_append_spaceterm(&(_out_string[l_startstr_idx]), ".");
+  string_append_spaceterm(&(_out_string[l_startstr_idx]), string_U32ToStr(_pwm_duty%10, l_strtmp));
+  string_append_spaceterm(&(_out_string[l_startstr_idx]), "%");
 }
 
-void Convert2String_PWM_period(u16 * const _pwm_period, char * _out_string)
+void Convert2String_PWM_period(u16 _pwm_period, char * _out_string)
 {
-  //char   l_strtmp[11];
-  u32 l_pwm_period = pwm_period;
+  char   l_strtmp[11];
   u8     l_period_mul10_factor = 0;
-  if     (l_pwm_period <=         4) {l_pwm_period *= 1000000000;l_period_mul10_factor = 9;}
-  else if(l_pwm_period <=        42) {l_pwm_period *= 100000000; l_period_mul10_factor = 8;}
-  else if(l_pwm_period <=       429) {l_pwm_period *= 10000000;  l_period_mul10_factor = 7;}
-  else if(l_pwm_period <=      4294) {l_pwm_period *= 1000000;   l_period_mul10_factor = 6;}
-  else if(l_pwm_period <=     42949) {l_pwm_period *= 100000;    l_period_mul10_factor = 5;}
-  else if(l_pwm_period <=    429496) {l_pwm_period *= 10000;     l_period_mul10_factor = 4;}
-  else if(l_pwm_period <=   4294967) {l_pwm_period *= 1000;      l_period_mul10_factor = 3;}
-  else if(l_pwm_period <=  42949672) {l_pwm_period *= 100;       l_period_mul10_factor = 2;}
-  else if(l_pwm_period <= 429496729) {l_pwm_period *= 10;        l_period_mul10_factor = 1;}
-  l_pwm_period = l_pwm_period / (48000000/pwm_timebase);
+  pwm_period_real = _pwm_period;
+  if     (_pwm_period <=         4) {pwm_period_real *= 1000000000;l_period_mul10_factor = 9;} //1ns
+  else if(_pwm_period <=        42) {pwm_period_real *= 100000000; l_period_mul10_factor = 8;} //10ns
+  else if(_pwm_period <=       429) {pwm_period_real *= 10000000;  l_period_mul10_factor = 7;} //100ns
+  else if(_pwm_period <=      4294) {pwm_period_real *= 1000000;   l_period_mul10_factor = 6;} //1us
+  else if(_pwm_period <=     42949) {pwm_period_real *= 100000;    l_period_mul10_factor = 5;} //10us
+  else if(_pwm_period <=    429496) {pwm_period_real *= 10000;     l_period_mul10_factor = 4;} //100us
+  else if(_pwm_period <=   4294967) {pwm_period_real *= 1000;      l_period_mul10_factor = 3;} //1ms
+  else if(_pwm_period <=  42949672) {pwm_period_real *= 100;       l_period_mul10_factor = 2;} //10ms
+  else if(_pwm_period <= 429496729) {pwm_period_real *= 10;        l_period_mul10_factor = 1;} //100ms
+  pwm_period_real = pwm_period_real / (48000000/pwm_timebase);
+  
+  string_copy_noterm(_out_string, LCD_CLEAR_HALFROW);  // clear old information
+  
+  switch(l_period_mul10_factor)
+  {
+    case 0: {
+      string_copy_noterm(_out_string, string_U32ToStr(pwm_period_real, l_strtmp));
+      string_append_spaceterm(_out_string, "S");
+      break;
+    }
+    case 1: {
+      string_copy_noterm(_out_string, "0.");
+      string_append_spaceterm(_out_string, string_U32ToStr(pwm_period_real, l_strtmp));
+      string_append_spaceterm(_out_string, "S");
+      break;
+    }
+    case 2: {
+      string_copy_noterm(_out_string, "0.0");
+      string_append_spaceterm(_out_string, string_U32ToStr(pwm_period_real, l_strtmp));
+      string_append_spaceterm(_out_string, "S");
+      break;
+    }
+    case 3: {
+      string_copy_noterm(_out_string, string_U32ToStr(pwm_period_real, l_strtmp));
+      string_append_spaceterm(_out_string, "mS");
+      break;
+    }
+    case 4: {
+      string_copy_noterm(_out_string, "0.");
+      string_append_spaceterm(_out_string, string_U32ToStr(pwm_period_real, l_strtmp));
+      string_append_spaceterm(_out_string, "mS");
+      break;
+    }
+    case 5: {
+      string_copy_noterm(_out_string, "0.0");
+      string_append_spaceterm(_out_string, string_U32ToStr(pwm_period_real, l_strtmp));
+      string_append_spaceterm(_out_string, "mS");
+      break;
+    }
+    case 6: {
+      string_copy_noterm(_out_string, string_U32ToStr(pwm_period_real, l_strtmp));
+      string_append_spaceterm(_out_string, "uS");
+      break;
+    }
+    case 7: {
+      string_copy_noterm(_out_string, "0.");
+      string_append_spaceterm(_out_string, string_U32ToStr(pwm_period_real, l_strtmp));
+      string_append_spaceterm(_out_string, "uS");
+      break;
+    }
+    case 8: {
+      string_copy_noterm(_out_string, "0.0");
+      string_append_spaceterm(_out_string, string_U32ToStr(pwm_period_real, l_strtmp));
+      string_append_spaceterm(_out_string, "uS");
+      break;
+    }
+    case 9: {
+      string_copy_noterm(_out_string, string_U32ToStr(pwm_period_real, l_strtmp));
+      string_append_spaceterm(_out_string, "nS");
+      break;
+    }
+    default: break;
+  }
 }
 
-void Convert2String_PWM_ontime(u16 * const _pwm_ontime, char * _out_string)
+void Convert2String_PWM_ontime(u16 _pwm_ontime, char * _out_string)
 {
-  //char l_strtmp[11];
+  char   l_strtmp[11];
+  u8     l_period_mul10_factor = 0;
+  pwm_ontime_real = _pwm_ontime;
+  if     (_pwm_ontime <=         4) {pwm_ontime_real *= 1000000000;l_period_mul10_factor = 9;} //1ns
+  else if(_pwm_ontime <=        42) {pwm_ontime_real *= 100000000; l_period_mul10_factor = 8;} //10ns
+  else if(_pwm_ontime <=       429) {pwm_ontime_real *= 10000000;  l_period_mul10_factor = 7;} //100ns
+  else if(_pwm_ontime <=      4294) {pwm_ontime_real *= 1000000;   l_period_mul10_factor = 6;} //1us
+  else if(_pwm_ontime <=     42949) {pwm_ontime_real *= 100000;    l_period_mul10_factor = 5;} //10us
+  else if(_pwm_ontime <=    429496) {pwm_ontime_real *= 10000;     l_period_mul10_factor = 4;} //100us
+  else if(_pwm_ontime <=   4294967) {pwm_ontime_real *= 1000;      l_period_mul10_factor = 3;} //1ms
+  else if(_pwm_ontime <=  42949672) {pwm_ontime_real *= 100;       l_period_mul10_factor = 2;} //10ms
+  else if(_pwm_ontime <= 429496729) {pwm_ontime_real *= 10;        l_period_mul10_factor = 1;} //100ms
+  pwm_ontime_real = pwm_ontime_real / (48000000/pwm_timebase);
   
+  string_copy_noterm(&(_out_string[8]), LCD_CLEAR_HALFROW);  // clear old information
+  
+  switch(l_period_mul10_factor)
+  {
+    case 0: {
+      string_copy_noterm(&(_out_string[8]), string_U32ToStr(pwm_ontime_real, l_strtmp));
+      string_append_spaceterm(&(_out_string[8]), "S");
+      break;
+    }
+    case 1: {
+      string_copy_noterm(&(_out_string[8]), "0.");
+      string_append_spaceterm(&(_out_string[8]), string_U32ToStr(pwm_ontime_real, l_strtmp));
+      string_append_spaceterm(&(_out_string[8]), "S");
+      break;
+    }
+    case 2: {
+      string_copy_noterm(&(_out_string[8]), "0.0");
+      string_append_spaceterm(&(_out_string[8]), string_U32ToStr(pwm_ontime_real, l_strtmp));
+      string_append_spaceterm(&(_out_string[8]), "S");
+      break;
+    }
+    case 3: {
+      string_copy_noterm(&(_out_string[8]), string_U32ToStr(pwm_ontime_real, l_strtmp));
+      string_append_spaceterm(&(_out_string[8]), "mS");
+      break;
+    }
+    case 4: {
+      string_copy_noterm(&(_out_string[8]), "0.");
+      string_append_spaceterm(&(_out_string[8]), string_U32ToStr(pwm_ontime_real, l_strtmp));
+      string_append_spaceterm(&(_out_string[8]), "mS");
+      break;
+    }
+    case 5: {
+      string_copy_noterm(&(_out_string[8]), "0.0");
+      string_append_spaceterm(&(_out_string[8]), string_U32ToStr(pwm_ontime_real, l_strtmp));
+      string_append_spaceterm(&(_out_string[8]), "mS");
+      break;
+    }
+    case 6: {
+      string_copy_noterm(&(_out_string[8]), string_U32ToStr(pwm_ontime_real, l_strtmp));
+      string_append_spaceterm(&(_out_string[8]), "uS");
+      break;
+    }
+    case 7: {
+      string_copy_noterm(&(_out_string[8]), "0.");
+      string_append_spaceterm(&(_out_string[8]), string_U32ToStr(pwm_ontime_real, l_strtmp));
+      string_append_spaceterm(&(_out_string[8]), "uS");
+      break;
+    }
+    case 8: {
+      string_copy_noterm(&(_out_string[8]), "0.0");
+      string_append_spaceterm(&(_out_string[8]), string_U32ToStr(pwm_ontime_real, l_strtmp));
+      string_append_spaceterm(&(_out_string[8]), "uS");
+      break;
+    }
+    case 9: {
+      string_copy_noterm(&(_out_string[8]), string_U32ToStr(pwm_ontime_real, l_strtmp));
+      string_append_spaceterm(&(_out_string[8]), "nS");
+      break;
+    }
+    default: break;
+  }
+}
+
+void Convert2String_PWM_modifier(Freq_Duty_t _freq_duty_selection, char * _out_string)
+{
+  switch(_freq_duty_selection)
+  {
+    case Period_Selected:
+    {
+      _out_string[15] = 'P';
+      break;
+    }
+    case Duty_Selected:
+    {
+      _out_string[15] = 'D';
+      break;
+    }
+    case Timebase_Selected:
+    {
+      _out_string[15] = 'T';
+      break;
+    }
+    case Polarity_Selected:
+    {
+      _out_string[15] = 'N';
+      break;
+    }
+    default: break;
+  }
 }
 
 #ifdef  USE_FULL_ASSERT
