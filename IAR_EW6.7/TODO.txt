@@ -1,0 +1,3 @@
+calculated frequency is correct for displayed period -1
+move row 2 position right
+implement timer2 coherent timer update

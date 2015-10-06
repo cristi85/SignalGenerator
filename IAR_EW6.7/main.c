@@ -264,7 +264,7 @@ u16 VrefINT_CAL;
 #define LCD_CLEAR_HALFROW "        "
 #define LCD_CLEAR_DUTY    "       "
 
-static char lcd_row1[17] = LCD_CLEAR_ROW;
+static char lcd_row1[18] = "                \n";
 static char lcd_row2[17] = LCD_CLEAR_ROW;
 
 #define PWM_PERIOD_START  (u16)1000
@@ -322,6 +322,7 @@ void Convert2String_PWM_freq(u32 _pwm_freq, char * _out_string);
 void Convert2String_PWM_duty(u16 _pwm_duty, char * _out_string);
 void Convert2String_PWM_period(u16 _pwm_period, char * _out_string);
 void Convert2String_PWM_ontime(u16 _pwm_ontime, char * _out_string);
+void Convert2String_PWM_modifier(Freq_Duty_t _freq_duty_selection, char * _out_string);
 
 int main(void)
 {
@@ -489,6 +490,7 @@ int main(void)
                 TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
                 TIM_OC4Init(TIM2, &TIM_OCInitStruct);
                 pwm_freq = (48000000 / pwm_timebase) / pwm_period;
+                LCD_Update |= LCD_Update_PWM_freq;
                 LCD_Update |= LCD_Update_PWM_period;
                 LCD_Update |= LCD_Update_PWM_ontime;
               }
@@ -553,7 +555,6 @@ int main(void)
                 TIM_TimeBaseInitStruct.TIM_Prescaler = pwm_timebase - 1; 
                 TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
                 pwm_freq = (48000000 / pwm_timebase) / pwm_period;
-                //TODO period and ontime calculation
                 LCD_Update |= LCD_Update_PWM_freq;
                 LCD_Update |= LCD_Update_PWM_period;
                 LCD_Update |= LCD_Update_PWM_ontime;
@@ -581,163 +582,213 @@ int main(void)
     }
     /* ================ END PRESS BTN FREQ INC ================== */
     
-    /* ============== PRESS BTN FREQ DEC ================= */
+/* ============== PRESS BTN FREQ DEC ================= */
     if(BTN_FREQDEC_DEB_STATE == BTN_PRESSED && BTN_FREQDEC_DELAY_FLAG)
     {
       char strtmp[11];
       BTN_FREQDEC_DELAY_FLAG = FALSE;
-      if(analog_sig_freq <= 875)  /* generated frequency < 876Hz */
+      switch(Current_Screen)
       {
-        if(analog_sig_freq > 1)
+        case Screen_Sin:
+        case Screen_Sawtooth:
+        case Screen_Triang:
+        case Screen_Sinc:
         {
-          analog_sig_freq--;
-          if(analog_sig_freq_old == 629 && analog_sig_freq == 628)
+          if(analog_sig_freq <= 875)  /* generated frequency < 876Hz */
           {
-            DMA_Cmd(DMA1_Channel3, DISABLE);
-            switch(Current_Screen)
+            if(analog_sig_freq > 1)
             {
-              case Screen_Sin:
+              analog_sig_freq--;
+              if(analog_sig_freq_old == 629 && analog_sig_freq == 628)
               {
-                DMA1_Channel3->CMAR = (u32)(&Sinus12bit130);
-                break;
+                DMA_Cmd(DMA1_Channel3, DISABLE);
+                switch(Current_Screen)
+                {
+                  case Screen_Sin:
+                  {
+                    DMA1_Channel3->CMAR = (u32)(&Sinus12bit130);
+                    break;
+                  }
+                  case Screen_Sawtooth:
+                  {
+                    DMA1_Channel3->CMAR = (u32)(&SawTooth12bit130);
+                    break;
+                  }
+                  case Screen_Triang:
+                  {
+                    DMA1_Channel3->CMAR = (u32)(&Triang12bit130);
+                    break;
+                  }
+                  case Screen_Sinc:
+                  {
+                    DMA1_Channel3->CMAR = (u32)(&SinCard12bit130);
+                    break;
+                  }
+                  default: break;
+                }
+                DMA1_Channel3->CNDTR = 130;
+                DMA_Cmd(DMA1_Channel3, ENABLE);
               }
-              case Screen_Sawtooth:
+              if(analog_sig_freq <= 5)
               {
-                DMA1_Channel3->CMAR = (u32)(&SawTooth12bit130);
-                break;
+                /* 1Hz - 5Hz */
+                TIM6->PSC = TMR_PSC_ARR_tab130_1HzTo5Hz[analog_sig_freq-1][0];
+                TIM6->ARR = TMR_PSC_ARR_tab130_1HzTo5Hz[analog_sig_freq-1][1];
               }
-              case Screen_Triang:
-              {
-                DMA1_Channel3->CMAR = (u32)(&Triang12bit130);
-                break;
+              else if(analog_sig_freq <= 628)
+              {/* 6Hz - 628Hz */
+                TIM6->PSC = 0;
+                TIM6->ARR = TMR_ARR_tab130_6HzTo628Hz[analog_sig_freq-6];
               }
-              case Screen_Sinc:
-              {
-                DMA1_Channel3->CMAR = (u32)(&SinCard12bit130);
-                break;
+              else
+              {/* 629Hz - 876Hz */
+                TIM6->ARR = TMR_ARR_tab65_629HzTo876Hz[analog_sig_freq-629];
               }
-              default:
-              {
-                break;
-              }
+              analog_sig_freq_old = analog_sig_freq;
+        
+              string_copy(lcd_row2, "  f=");
+              string_append(lcd_row2, string_U32ToStr(analog_sig_freq, strtmp));
+              string_append(lcd_row2, "Hz");
+              LCD_WriteString(LCD_CLEAR_ROW);
+              LCD_Move_Cursor(2, 0);
+              LCD_WriteString(lcd_row2);
             }
-            DMA1_Channel3->CNDTR = 130;
-            DMA_Cmd(DMA1_Channel3, ENABLE);
           }
-          if(analog_sig_freq <= 5)
+          else if(analog_sig_freq == 876)
           {
-            /* 1Hz - 5Hz */
-            TIM6->PSC = TMR_PSC_ARR_tab130_1HzTo5Hz[analog_sig_freq-1][0];
-            TIM6->ARR = TMR_PSC_ARR_tab130_1HzTo5Hz[analog_sig_freq-1][1];
-          }
-          else if(analog_sig_freq <= 628)
-          {/* 6Hz - 628Hz */
             TIM6->PSC = 0;
-            TIM6->ARR = TMR_ARR_tab130_6HzTo628Hz[analog_sig_freq-6];
-          }
-          else
-          {/* 629Hz - 876Hz */
-            TIM6->ARR = TMR_ARR_tab65_629HzTo876Hz[analog_sig_freq-629];
-          }
-          analog_sig_freq_old = analog_sig_freq;
-          if(Current_Screen != Screen_PWM)
-          {
+            TIM6->ARR++;
+            if(TIM6->ARR == 843) analog_sig_freq = 875;  /* 843 corresponds to 875Hz */
             string_copy(lcd_row2, "  f=");
-            string_append(lcd_row2, string_U32ToStr(analog_sig_freq, strtmp));
+            string_append(lcd_row2, string_U32ToStr(738462/TIM6->ARR, strtmp));
             string_append(lcd_row2, "Hz");
             LCD_WriteString(LCD_CLEAR_ROW);
             LCD_Move_Cursor(2, 0);
             LCD_WriteString(lcd_row2);
           }
+          break;
         }
-      }
-      else if(analog_sig_freq == 876)
-      {
-        TIM6->PSC = 0;
-        TIM6->ARR++;
-        if(TIM6->ARR == 843) analog_sig_freq = 875;  /* 843 corresponds to 875Hz */
-        if(Current_Screen != Screen_PWM)
+        case Screen_PWM:
         {
-          string_copy(lcd_row2, "  f=");
-          string_append(lcd_row2, string_U32ToStr(738462/TIM6->ARR, strtmp));
-          string_append(lcd_row2, "Hz");
-          LCD_WriteString(LCD_CLEAR_ROW);
-          LCD_Move_Cursor(2, 0);
-          LCD_WriteString(lcd_row2);
-        }
-      }
-      if(Current_Screen == Screen_PWM)
-      {
-        switch(freq_duty_selection)
-        {
-          case Period_Selected:
+          switch(freq_duty_selection)
           {
-            if(BTN_FREQDEC_press_timer < BTN_DELAY_1000ms)  
+            case Period_Selected:
             {
-              if(pwm_period > 2) pwm_period--;
+              if(BTN_FREQDEC_press_timer < BTN_DELAY_1000ms)  
+              {
+                if(pwm_period > 2) pwm_period--;
+              }
+              else if(BTN_FREQDEC_press_timer >= BTN_DELAY_1000ms && BTN_FREQDEC_press_timer < BTN_DELAY_2500ms)
+              {
+                if(pwm_period > 12) pwm_period -= 10;
+                else pwm_period = 2;
+              }
+              else if(BTN_FREQDEC_press_timer >= BTN_DELAY_2500ms && BTN_FREQDEC_press_timer < BTN_DELAY_5000ms)
+              {
+                if(pwm_period > 102) pwm_period -= 100;
+                else pwm_period = 2;
+              }
+              else if(BTN_FREQDEC_press_timer >= BTN_DELAY_5000ms)
+              {
+                if(pwm_period > 502) pwm_period -= 500;
+                else pwm_period = 2;
+              }
+              if(pwm_period != pwm_period_old)
+              {
+                pwm_sig_pulse = (pwm_duty * pwm_period) / 1000;
+                TIM_TimeBaseInitStruct.TIM_Period = pwm_period;  // This parameter must be a number between 0x0000 and 0xFFFF, fclk=10k, 10000->T=1s
+                TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
+                TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
+                TIM_OC4Init(TIM2, &TIM_OCInitStruct);
+                pwm_freq = (48000000 / pwm_timebase) / pwm_period;
+                LCD_Update |= LCD_Update_PWM_freq;
+                LCD_Update |= LCD_Update_PWM_period;
+                LCD_Update |= LCD_Update_PWM_ontime;
+              }
+              pwm_period_old = pwm_period;
+              break;
             }
-            else if(BTN_FREQDEC_press_timer >= BTN_DELAY_1000ms && BTN_FREQDEC_press_timer < BTN_DELAY_2500ms)
+            case Duty_Selected:
             {
-              if(pwm_period > 12) pwm_period -= 10;
-              else pwm_period = 2;
+              if(BTN_FREQDEC_press_timer < BTN_DELAY_1000ms)  
+              {
+                if(pwm_duty > 1) pwm_duty--;
+              }
+              else if(BTN_FREQDEC_press_timer >= BTN_DELAY_1000ms && BTN_FREQDEC_press_timer < BTN_DELAY_2500ms)
+              {
+                if(pwm_duty > 11) pwm_duty -= 10;
+                else pwm_duty = 1;
+              }
+              else if(BTN_FREQDEC_press_timer >= BTN_DELAY_2500ms && BTN_FREQDEC_press_timer < BTN_DELAY_5000ms)
+              {
+                if(pwm_duty > 101) pwm_duty -= 100;
+                else pwm_duty = 1;
+              }
+              else if(BTN_FREQDEC_press_timer >= BTN_DELAY_5000ms)
+              {
+                if(pwm_duty > 201) pwm_duty -= 200;
+                else pwm_duty = 1;
+              }
+              if(pwm_duty != pwm_duty_old)
+              {
+                pwm_sig_pulse = (pwm_duty * pwm_period) / 1000;
+                TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
+                TIM_OC4Init(TIM2, &TIM_OCInitStruct);
+                LCD_Update |= LCD_Update_PWM_duty;
+                LCD_Update |= LCD_Update_PWM_ontime;
+              }
+              pwm_duty_old = pwm_duty;
+              break;
             }
-            else if(BTN_FREQDEC_press_timer >= BTN_DELAY_2500ms && BTN_FREQDEC_press_timer < BTN_DELAY_5000ms)
+            case Timebase_Selected:
             {
-              if(pwm_period > 102) pwm_period -= 100;
-              else pwm_period = 2;
+              if(BTN_FREQDEC_press_timer < BTN_DELAY_1000ms)  
+              {
+                if(pwm_timebase > 1) pwm_timebase--;
+              }
+              else if(BTN_FREQDEC_press_timer >= BTN_DELAY_1000ms && BTN_FREQDEC_press_timer < BTN_DELAY_2500ms)
+              {
+                if(pwm_timebase > 11) pwm_timebase -= 10;
+                else pwm_timebase = 1;
+              }
+              else if(BTN_FREQDEC_press_timer >= BTN_DELAY_2500ms && BTN_FREQDEC_press_timer < BTN_DELAY_5000ms)
+              {
+                if(pwm_timebase > 101) pwm_timebase -= 100;
+                else pwm_timebase = 1;
+              }
+              else if(BTN_FREQDEC_press_timer >= BTN_DELAY_5000ms)
+              {
+                if(pwm_timebase > 201) pwm_timebase -= 200;
+                else pwm_timebase = 1;
+              }
+              if(pwm_timebase != pwm_timebase_old)
+              {
+                TIM_TimeBaseInitStruct.TIM_Prescaler = pwm_timebase - 1; 
+                TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
+                pwm_freq = (48000000 / pwm_timebase) / pwm_period;
+                LCD_Update |= LCD_Update_PWM_freq;
+                LCD_Update |= LCD_Update_PWM_period;
+                LCD_Update |= LCD_Update_PWM_ontime;
+              }
+              pwm_timebase_old = pwm_timebase;
+              break;
             }
-            else if(BTN_FREQDEC_press_timer >= BTN_DELAY_5000ms)
+            case Polarity_Selected:
             {
-              if(pwm_period > 502) pwm_period -= 500;
-              else pwm_period = 2;
+              if(pwm_polarity == Polarity_Positive)
+              {
+                TIM_OCInitStruct.TIM_OCPolarity = TIM_OCPolarity_High;
+              }
+              else if(pwm_polarity == Polarity_Negative)
+              {
+                TIM_OCInitStruct.TIM_OCPolarity = TIM_OCPolarity_Low;
+              }
+              TIM_OC4Init(TIM2, &TIM_OCInitStruct);
             }
-            pwm_sig_pulse = (pwm_duty * pwm_period) / 1000;
-            TIM_TimeBaseInitStruct.TIM_Period = pwm_period;  // This parameter must be a number between 0x0000 and 0xFFFF, fclk=10k, 10000->T=1s
-            TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
-            TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
-            TIM_OC4Init(TIM2, &TIM_OCInitStruct);
-            break;
+            default: break;
           }
-          case Duty_Selected:
-          {
-            if(BTN_FREQDEC_press_timer < BTN_DELAY_1000ms)  
-            {
-              if(pwm_duty > 1) pwm_duty--;
-            }
-            else if(BTN_FREQDEC_press_timer >= BTN_DELAY_1000ms && BTN_FREQDEC_press_timer < BTN_DELAY_2500ms)
-            {
-              if(pwm_duty > 11) pwm_duty -= 10;
-              else pwm_duty = 1;
-            }
-            else if(BTN_FREQDEC_press_timer >= BTN_DELAY_2500ms && BTN_FREQDEC_press_timer < BTN_DELAY_5000ms)
-            {
-              if(pwm_duty > 101) pwm_duty -= 100;
-              else pwm_duty = 1;
-            }
-            else if(BTN_FREQDEC_press_timer >= BTN_DELAY_5000ms)
-            {
-              if(pwm_duty > 201) pwm_duty -= 200;
-              else pwm_duty = 1;
-            }
-            
-            pwm_sig_pulse = (pwm_duty * pwm_period) / 1000;
-            TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
-            TIM_OC4Init(TIM2, &TIM_OCInitStruct);
-            break;
-          }
-          default: break;
+          break;
         }
-        
-        LCD_Clear();
-        string_copy(lcd_row1, "  P=");
-        string_append(lcd_row1, string_U32ToStr(pwm_period, strtmp));
-        string_append(lcd_row1, "us");
-        LCD_WriteString(lcd_row1);
-        string_copy(lcd_row2, "  tON=");
-        string_append(lcd_row2, string_U32ToStr(pwm_sig_pulse, strtmp));
-        string_append(lcd_row2, "us");
-        LCD_Move_Cursor(2, 0);
-        LCD_WriteString(lcd_row2);
       }
     }
     /* ================ END PRESS BTN FREQ DEC ================== */
@@ -873,10 +924,7 @@ int main(void)
           LCD_Update |= LCD_Update_PWM_modifier;
           break;
         }
-        default:
-        {
-          break;
-        }
+        default: break;
       }
       DMA_Cmd(DMA1_Channel3, ENABLE);
     }
@@ -977,6 +1025,7 @@ int main(void)
 void Convert2String_PWM_freq(u32 _pwm_freq, char * _out_string)
 {
   char l_strtmp[11];
+  u32 l_mod;
   // pwm freq will be displayed on row1 leftside
   string_copy_noterm(_out_string, LCD_CLEAR_HALFROW);  // clear old information
   if(_pwm_freq < 1000)
@@ -986,21 +1035,27 @@ void Convert2String_PWM_freq(u32 _pwm_freq, char * _out_string)
   }
   else if(_pwm_freq >= 1000 && _pwm_freq < 1000000)  // 1.000KHz - 999.999KHz
   {
+    l_mod = (_pwm_freq)%1000;
     string_copy_noterm(_out_string, string_U32ToStr((_pwm_freq)/1000, l_strtmp));
     string_append_spaceterm(_out_string, ".");
-    string_append_spaceterm(_out_string, string_U32ToStr(((_pwm_freq)%1000), l_strtmp));
+    if(l_mod < 10) string_append_spaceterm(_out_string, "0");
+    if(l_mod < 100) string_append_spaceterm(_out_string, "0");
+    string_append_spaceterm(_out_string, string_U32ToStr(l_mod, l_strtmp));
     string_append_spaceterm(_out_string, "K");
   }
   else if((_pwm_freq) >= 1000000 && (_pwm_freq) < 1000000000)  // 1.000Mhz - 999.999Mhz
   {
+    l_mod = ((_pwm_freq)%1000000)/1000;
     string_copy_noterm(_out_string, string_U32ToStr((_pwm_freq)/1000000, l_strtmp));
     string_append_spaceterm(_out_string, ".");
-    string_append_spaceterm(_out_string, string_U32ToStr(((_pwm_freq)%1000000)/1000, l_strtmp));
+    if(l_mod < 10) string_append_spaceterm(_out_string, "0");
+    if(l_mod < 100) string_append_spaceterm(_out_string, "0");
+    string_append_spaceterm(_out_string, string_U32ToStr(l_mod, l_strtmp));
     string_append_spaceterm(_out_string, "M");
   }
 }
 
-void Convert2String_PWM_duty(_pwm_duty, char * _out_string)
+void Convert2String_PWM_duty(u16 _pwm_duty, char * _out_string)
 {
   char l_strtmp[11];
   u8 l_tmp = _pwm_duty/10;
@@ -1032,10 +1087,10 @@ void Convert2String_PWM_period(u16 _pwm_period, char * _out_string)
   else if(_pwm_period <=       429) {pwm_period_real *= 10000000;  l_period_mul10_factor = 7;} //100ns
   else if(_pwm_period <=      4294) {pwm_period_real *= 1000000;   l_period_mul10_factor = 6;} //1us
   else if(_pwm_period <=     42949) {pwm_period_real *= 100000;    l_period_mul10_factor = 5;} //10us
-  else if(_pwm_period <=    429496) {pwm_period_real *= 10000;     l_period_mul10_factor = 4;} //100us
+  /*else if(_pwm_period <=    429496) {pwm_period_real *= 10000;     l_period_mul10_factor = 4;} //100us
   else if(_pwm_period <=   4294967) {pwm_period_real *= 1000;      l_period_mul10_factor = 3;} //1ms
   else if(_pwm_period <=  42949672) {pwm_period_real *= 100;       l_period_mul10_factor = 2;} //10ms
-  else if(_pwm_period <= 429496729) {pwm_period_real *= 10;        l_period_mul10_factor = 1;} //100ms
+  else if(_pwm_period <= 429496729) {pwm_period_real *= 10;        l_period_mul10_factor = 1;} //100ms*/
   pwm_period_real = pwm_period_real / (48000000/pwm_timebase);
   
   string_copy_noterm(_out_string, LCD_CLEAR_HALFROW);  // clear old information
@@ -1112,10 +1167,10 @@ void Convert2String_PWM_ontime(u16 _pwm_ontime, char * _out_string)
   else if(_pwm_ontime <=       429) {pwm_ontime_real *= 10000000;  l_period_mul10_factor = 7;} //100ns
   else if(_pwm_ontime <=      4294) {pwm_ontime_real *= 1000000;   l_period_mul10_factor = 6;} //1us
   else if(_pwm_ontime <=     42949) {pwm_ontime_real *= 100000;    l_period_mul10_factor = 5;} //10us
-  else if(_pwm_ontime <=    429496) {pwm_ontime_real *= 10000;     l_period_mul10_factor = 4;} //100us
+  /*else if(_pwm_ontime <=    429496) {pwm_ontime_real *= 10000;     l_period_mul10_factor = 4;} //100us
   else if(_pwm_ontime <=   4294967) {pwm_ontime_real *= 1000;      l_period_mul10_factor = 3;} //1ms
   else if(_pwm_ontime <=  42949672) {pwm_ontime_real *= 100;       l_period_mul10_factor = 2;} //10ms
-  else if(_pwm_ontime <= 429496729) {pwm_ontime_real *= 10;        l_period_mul10_factor = 1;} //100ms
+  else if(_pwm_ontime <= 429496729) {pwm_ontime_real *= 10;        l_period_mul10_factor = 1;} //100ms*/
   pwm_ontime_real = pwm_ontime_real / (48000000/pwm_timebase);
   
   string_copy_noterm(&(_out_string[8]), LCD_CLEAR_HALFROW);  // clear old information
@@ -1164,13 +1219,13 @@ void Convert2String_PWM_ontime(u16 _pwm_ontime, char * _out_string)
     case 7: {
       string_copy_noterm(&(_out_string[8]), "0.");
       string_append_spaceterm(&(_out_string[8]), string_U32ToStr(pwm_ontime_real, l_strtmp));
-      string_append_spaceterm(&(_out_string[8]), "uS");
+      string_append_spaceterm(&(_out_string[8]), "mS");
       break;
     }
     case 8: {
       string_copy_noterm(&(_out_string[8]), "0.0");
       string_append_spaceterm(&(_out_string[8]), string_U32ToStr(pwm_ontime_real, l_strtmp));
-      string_append_spaceterm(&(_out_string[8]), "uS");
+      string_append_spaceterm(&(_out_string[8]), "mS");
       break;
     }
     case 9: {
