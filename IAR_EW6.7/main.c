@@ -341,7 +341,7 @@ int main(void)
   
   TIM_TimeBaseInitStruct.TIM_Prescaler = pwm_timebase - 1;           // Prescaler=48 (47+1), This parameter can be a number between 0x0000 and 0xFFFF
   TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;       // This parameter can be a value of @ref TIM_Counter_Mode
-  TIM_TimeBaseInitStruct.TIM_Period = pwm_period;                    // This parameter must be a number between 0x0000 and 0xFFFF, fclk=1M, 1000000->T=1s
+  TIM_TimeBaseInitStruct.TIM_Period = pwm_period - 1;                // This parameter must be a number between 0x0000 and 0xFFFF, fclk=1M, 1000000->T=1s
   TIM_TimeBaseInitStruct.TIM_ClockDivision = TIM_CKD_DIV1;           // This parameter can be a value of @ref TIM_Clock_Division_CKD
   TIM_TimeBaseInitStruct.TIM_RepetitionCounter = 0;                  // This parameter is valid only for TIM1
   TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
@@ -359,9 +359,10 @@ int main(void)
   TIM_OCInitStruct.TIM_OCNIdleState = TIM_OCNIdleState_Reset;
   TIM_OC4Init(TIM2, &TIM_OCInitStruct);
   TIM_Cmd(TIM2, DISABLE);
+  TIM_ARRPreloadConfig(TIM2, ENABLE);
   TIM_CtrlPWMOutputs(TIM2, ENABLE);
   
-  pwm_freq = (48000000 / pwm_timebase) / pwm_period;
+  pwm_freq = (48000000 / pwm_timebase) / (pwm_period);
   
   Errors_Init();
   
@@ -485,11 +486,13 @@ int main(void)
               if(pwm_period != pwm_period_old)
               {
                 pwm_sig_pulse = (pwm_duty * pwm_period) / 1000;
-                TIM_TimeBaseInitStruct.TIM_Period = pwm_period;  // This parameter must be a number between 0x0000 and 0xFFFF, fclk=10k, 10000->T=1s
-                TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
-                TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
-                TIM_OC4Init(TIM2, &TIM_OCInitStruct);
-                pwm_freq = (48000000 / pwm_timebase) / pwm_period;
+                //TIM_TimeBaseInitStruct.TIM_Period = pwm_period;  // This parameter must be a number between 0x0000 and 0xFFFF, fclk=10k, 10000->T=1s
+                //TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
+                TIM2->ARR = pwm_period - 1;
+                //TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
+                //TIM_OC4Init(TIM2, &TIM_OCInitStruct);
+                TIM2->CCR4 = pwm_sig_pulse;
+                pwm_freq = (48000000 / pwm_timebase) / (pwm_period);
                 LCD_Update |= LCD_Update_PWM_freq;
                 LCD_Update |= LCD_Update_PWM_period;
                 LCD_Update |= LCD_Update_PWM_ontime;
@@ -521,8 +524,9 @@ int main(void)
               if(pwm_duty != pwm_duty_old)
               {
                 pwm_sig_pulse = (pwm_duty * pwm_period) / 1000;
-                TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
-                TIM_OC4Init(TIM2, &TIM_OCInitStruct);
+                //TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
+                //TIM_OC4Init(TIM2, &TIM_OCInitStruct);
+                TIM2->CCR4 = pwm_sig_pulse;
                 LCD_Update |= LCD_Update_PWM_duty;
                 LCD_Update |= LCD_Update_PWM_ontime;
               }
@@ -552,9 +556,10 @@ int main(void)
               }
               if(pwm_timebase != pwm_timebase_old)
               {
-                TIM_TimeBaseInitStruct.TIM_Prescaler = pwm_timebase - 1; 
-                TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
-                pwm_freq = (48000000 / pwm_timebase) / pwm_period;
+                //TIM_TimeBaseInitStruct.TIM_Prescaler = pwm_timebase - 1; 
+                //TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
+                TIM2->PSC = pwm_timebase - 1;
+                pwm_freq = (48000000 / pwm_timebase) / (pwm_period);
                 LCD_Update |= LCD_Update_PWM_freq;
                 LCD_Update |= LCD_Update_PWM_period;
                 LCD_Update |= LCD_Update_PWM_ontime;
@@ -566,13 +571,13 @@ int main(void)
             {
               if(pwm_polarity == Polarity_Positive)
               {
-                TIM_OCInitStruct.TIM_OCPolarity = TIM_OCPolarity_High;
+                TIM_OC4PolarityConfig(TIM2, uint16_t TIM_OCPolarity_High);
               }
               else if(pwm_polarity == Polarity_Negative)
               {
-                TIM_OCInitStruct.TIM_OCPolarity = TIM_OCPolarity_Low;
+                TIM_OC4PolarityConfig(TIM2, uint16_t TIM_OCPolarity_Low);
               }
-              TIM_OC4Init(TIM2, &TIM_OCInitStruct);
+              //TIM_OC4Init(TIM2, &TIM_OCInitStruct);
             }
             default: break;
           }
@@ -696,11 +701,13 @@ int main(void)
               if(pwm_period != pwm_period_old)
               {
                 pwm_sig_pulse = (pwm_duty * pwm_period) / 1000;
-                TIM_TimeBaseInitStruct.TIM_Period = pwm_period;  // This parameter must be a number between 0x0000 and 0xFFFF, fclk=10k, 10000->T=1s
-                TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
-                TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
-                TIM_OC4Init(TIM2, &TIM_OCInitStruct);
-                pwm_freq = (48000000 / pwm_timebase) / pwm_period;
+                //TIM_TimeBaseInitStruct.TIM_Period = pwm_period;  // This parameter must be a number between 0x0000 and 0xFFFF, fclk=10k, 10000->T=1s
+                //TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
+                TIM2->ARR = pwm_period - 1;
+                //TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
+                //TIM_OC4Init(TIM2, &TIM_OCInitStruct);
+                TIM2->CCR4 = pwm_sig_pulse;
+                pwm_freq = (48000000 / pwm_timebase) / (pwm_period);
                 LCD_Update |= LCD_Update_PWM_freq;
                 LCD_Update |= LCD_Update_PWM_period;
                 LCD_Update |= LCD_Update_PWM_ontime;
@@ -732,8 +739,9 @@ int main(void)
               if(pwm_duty != pwm_duty_old)
               {
                 pwm_sig_pulse = (pwm_duty * pwm_period) / 1000;
-                TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
-                TIM_OC4Init(TIM2, &TIM_OCInitStruct);
+                //TIM_OCInitStruct.TIM_Pulse = pwm_sig_pulse;          // Duty cycle (compared to TIM_Period)
+                //TIM_OC4Init(TIM2, &TIM_OCInitStruct);
+                 TIM2->CCR4 = pwm_sig_pulse;
                 LCD_Update |= LCD_Update_PWM_duty;
                 LCD_Update |= LCD_Update_PWM_ontime;
               }
@@ -763,9 +771,10 @@ int main(void)
               }
               if(pwm_timebase != pwm_timebase_old)
               {
-                TIM_TimeBaseInitStruct.TIM_Prescaler = pwm_timebase - 1; 
-                TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
-                pwm_freq = (48000000 / pwm_timebase) / pwm_period;
+                //TIM_TimeBaseInitStruct.TIM_Prescaler = pwm_timebase - 1; 
+                //TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
+                TIM2->PSC = pwm_timebase - 1;
+                pwm_freq = (48000000 / pwm_timebase) / (pwm_period);
                 LCD_Update |= LCD_Update_PWM_freq;
                 LCD_Update |= LCD_Update_PWM_period;
                 LCD_Update |= LCD_Update_PWM_ontime;
@@ -777,13 +786,13 @@ int main(void)
             {
               if(pwm_polarity == Polarity_Positive)
               {
-                TIM_OCInitStruct.TIM_OCPolarity = TIM_OCPolarity_High;
+                TIM_OC4PolarityConfig(TIM2, uint16_t TIM_OCPolarity_High);
               }
               else if(pwm_polarity == Polarity_Negative)
               {
-                TIM_OCInitStruct.TIM_OCPolarity = TIM_OCPolarity_Low;
+                TIM_OC4PolarityConfig(TIM2, uint16_t TIM_OCPolarity_Low);
               }
-              TIM_OC4Init(TIM2, &TIM_OCInitStruct);
+              //TIM_OC4Init(TIM2, &TIM_OCInitStruct);
             }
             default: break;
           }
@@ -947,8 +956,8 @@ int main(void)
           LCD_Home();
           if(LCD_Update & LCD_Update_PWM_freq)     Convert2String_PWM_freq(pwm_freq, lcd_row1);
           if(LCD_Update & LCD_Update_PWM_duty)     Convert2String_PWM_duty(pwm_duty, lcd_row1);
-          if(LCD_Update & LCD_Update_PWM_period)   Convert2String_PWM_period(pwm_period, lcd_row2);
-          if(LCD_Update & LCD_Update_PWM_ontime)   Convert2String_PWM_ontime(pwm_sig_pulse, lcd_row2);
+          if(LCD_Update & LCD_Update_PWM_period)   Convert2String_PWM_period(pwm_period, lcd_row2[1]);
+          if(LCD_Update & LCD_Update_PWM_ontime)   Convert2String_PWM_ontime(pwm_sig_pulse, lcd_row2[1]);
           if(LCD_Update & LCD_Update_PWM_modifier) Convert2String_PWM_modifier(freq_duty_selection, lcd_row1);
           LCD_WriteString(lcd_row1);
           LCD_WriteString(lcd_row2);
