@@ -571,11 +571,11 @@ int main(void)
             {
               if(pwm_polarity == Polarity_Positive)
               {
-                TIM_OC4PolarityConfig(TIM2, uint16_t TIM_OCPolarity_High);
+                TIM_OC4PolarityConfig(TIM2, TIM_OCPolarity_High);
               }
               else if(pwm_polarity == Polarity_Negative)
               {
-                TIM_OC4PolarityConfig(TIM2, uint16_t TIM_OCPolarity_Low);
+                TIM_OC4PolarityConfig(TIM2, TIM_OCPolarity_Low);
               }
               //TIM_OC4Init(TIM2, &TIM_OCInitStruct);
             }
@@ -786,11 +786,11 @@ int main(void)
             {
               if(pwm_polarity == Polarity_Positive)
               {
-                TIM_OC4PolarityConfig(TIM2, uint16_t TIM_OCPolarity_High);
+                TIM_OC4PolarityConfig(TIM2, TIM_OCPolarity_High);
               }
               else if(pwm_polarity == Polarity_Negative)
               {
-                TIM_OC4PolarityConfig(TIM2, uint16_t TIM_OCPolarity_Low);
+                TIM_OC4PolarityConfig(TIM2, TIM_OCPolarity_Low);
               }
               //TIM_OC4Init(TIM2, &TIM_OCInitStruct);
             }
@@ -956,8 +956,8 @@ int main(void)
           LCD_Home();
           if(LCD_Update & LCD_Update_PWM_freq)     Convert2String_PWM_freq(pwm_freq, lcd_row1);
           if(LCD_Update & LCD_Update_PWM_duty)     Convert2String_PWM_duty(pwm_duty, lcd_row1);
-          if(LCD_Update & LCD_Update_PWM_period)   Convert2String_PWM_period(pwm_period, lcd_row2[1]);
-          if(LCD_Update & LCD_Update_PWM_ontime)   Convert2String_PWM_ontime(pwm_sig_pulse, lcd_row2[1]);
+          if(LCD_Update & LCD_Update_PWM_period)   Convert2String_PWM_period(pwm_period, &lcd_row2[1]);
+          if(LCD_Update & LCD_Update_PWM_ontime)   Convert2String_PWM_ontime(pwm_sig_pulse, &lcd_row2[1]);
           if(LCD_Update & LCD_Update_PWM_modifier) Convert2String_PWM_modifier(freq_duty_selection, lcd_row1);
           LCD_WriteString(lcd_row1);
           LCD_WriteString(lcd_row2);
@@ -1146,9 +1146,14 @@ void Convert2String_PWM_period(u16 _pwm_period, char * _out_string)
       break;
     }
     case 7: {
-      string_copy_noterm(_out_string, "0.");
-      string_append_spaceterm(_out_string, string_U32ToStr(pwm_period_real, l_strtmp));
-      string_append_spaceterm(_out_string, "uS");
+      _out_string[0] = pwm_period_real / 10 + 48;
+      _out_string[1] = '.';
+      _out_string[2] = pwm_period_real % 10 + 48;
+      _out_string[3] = 'u';
+      _out_string[4] = 's';
+      //string_copy_noterm(_out_string, "0.");
+      //string_append_spaceterm(_out_string, string_U32ToStr(pwm_period_real, l_strtmp));
+      //string_append_spaceterm(_out_string, "uS");
       break;
     }
     case 8: {
