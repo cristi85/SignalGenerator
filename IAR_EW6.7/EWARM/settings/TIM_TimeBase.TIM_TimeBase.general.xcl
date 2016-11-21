@@ -1,14 +1,14 @@
-"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2\arm\bin\armproc.dll" 
+"D:\IAR Systems\Embedded Workbench 7.5\arm\bin\armproc.dll" 
 
-"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2\arm\bin\armstlink.dll" 
+"D:\IAR Systems\Embedded Workbench 7.5\arm\bin\armstlink2.dll" 
 
-"D:\_WORK\GitHub\SignalGenerator\IAR_EW6.7\EWARM\TIM_TimeBase\Exe\TIM_TimeBase.out" 
+"D:\Work\Bitbucket\ProgrammableLoad_SW\IAR_EW6.7\EWARM\TIM_TimeBase\Exe\TIM_TimeBase.out" 
 
---plugin "C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2\arm\bin\armbat.dll" 
+--plugin "D:\IAR Systems\Embedded Workbench 7.5\arm\bin\armbat.dll" 
 
---device_macro "C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2\arm\config\debugger\ST\STM32F05xxx_06xxx.dmac" 
+--device_macro "D:\IAR Systems\Embedded Workbench 7.5\arm\config\debugger\ST\STM32F0xx.dmac" 
 
---flash_loader "C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.2\arm\config\flashloader\ST\FlashSTM32F051x6.board" 
+--flash_loader "D:\IAR Systems\Embedded Workbench 7.5\arm\config\flashloader\ST\FlashSTM32F05xx6.board" 
 
 
 

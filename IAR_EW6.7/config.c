@@ -4,8 +4,7 @@
 #include "errors.h"
 #include "timeout.h"
 
-extern const u16 Sinus12bit130[130];
-extern const u16 Sinus12bit65[65];
+extern volatile u16 ADC_Conv_Tab[ADC_Scan_Channels];  /* 0 - PA5, 1 - Vref */
 
 void Config_UART1(void);
 void Config_TIM1(void);
@@ -17,6 +16,7 @@ void Config_TIM14(void);
 void Config_TIM15(void);
 void Config_COMP1(void);
 void Config_DAC_DMA(void);
+void Config_DAC(void);
 void Config_ADC1_DMA(void);
 
 void Config()
@@ -29,90 +29,12 @@ void Config()
   Config_TIM1();     /* Configure TIM1_CH1 as PWM output on PA8 (PWM1 Output) */
   //Config_TIM2();     /* Configure TIM2_CH4 as PWM output on PA3 (PWM2 Output) */
   Config_TIM3();     /* Periodic 2ms interrupt */
-  Config_TIM6();     /* Periodic DAC triggering */
+  //Config_TIM6();     /* Periodic DAC triggering */
   //Config_TIM14();
   Config_TIM15();    /* for delay_10us */
-  Config_DAC_DMA();
-}
-void Config_ADC1_DMA()
-{
-  ADC_InitTypeDef ADC_InitStructure;
-  DMA_InitTypeDef DMA_InitStructure;
-  NVIC_InitTypeDef NVIC_InitStructure;
-  
-  /* ADC1 DeInit */  
-  ADC_DeInit(ADC1);
-  
-  /* ADC1 Periph clock enable */
-  RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
-  
-  /* DMA1 clock enable */
-  RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1 , ENABLE);
-  
-  /* DMA1 Channel1 Config */
-  DMA_DeInit(DMA1_Channel1);
-  DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)0x00000000;
-  DMA_InitStructure.DMA_MemoryBaseAddr = (u32)0x00000000;
-  DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC;
-  DMA_InitStructure.DMA_BufferSize = 2;
-  DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
-  DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
-  DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord;
-  DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;
-  DMA_InitStructure.DMA_Mode = DMA_Mode_Circular;
-  DMA_InitStructure.DMA_Priority = DMA_Priority_High;
-  DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
-  DMA_Init(DMA1_Channel1, &DMA_InitStructure);
-  
-  /* DMA1 Channel1 enable */
-  DMA_Cmd(DMA1_Channel1, ENABLE);
-  
-  /* Enable the DMA channel 1 global Interrupt */
-  NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel1_IRQn;
-  NVIC_InitStructure.NVIC_IRQChannelPriority = 0;
-  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-  NVIC_Init(&NVIC_InitStructure);
-  
-  /* Enable Transfer Complete IT notification for DMA1 Channel 1 */
-  DMA_ITConfig(DMA1_Channel1, DMA1_IT_TC1, ENABLE);
-  
-  /* ADC DMA request in circular mode */
-  ADC_DMARequestModeConfig(ADC1, ADC_DMAMode_Circular);
-  
-  /* Enable ADC_DMA */
-  ADC_DMACmd(ADC1, ENABLE);  
-  
-  /* Initialize ADC structure */
-  ADC_StructInit(&ADC_InitStructure);
-  
-  /* Configure the ADC1 in continous mode withe a resolutuion equal to 12 bits  */
-  ADC_InitStructure.ADC_Resolution = ADC_Resolution_12b;
-  ADC_InitStructure.ADC_ContinuousConvMode = ENABLE; 
-  ADC_InitStructure.ADC_ExternalTrigConvEdge = ADC_ExternalTrigConvEdge_None;
-  ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
-  ADC_InitStructure.ADC_ScanDirection = ADC_ScanDirection_Backward;
-  ADC_Init(ADC1, &ADC_InitStructure); 
-  
-  /* Convert the ADC1 Vref  with 55.5 Cycles as sampling time */ 
-  ADC_ChannelConfig(ADC1, ADC_Channel_Vrefint, ADC_SampleTime_55_5Cycles); 
-  ADC_VrefintCmd(ENABLE);
-  /* Convert the ADC1 ADC_Channel_5  with 239.5 Cycles as sampling time */ 
-  ADC_ChannelConfig(ADC1, ADC_Channel_5, ADC_SampleTime_239_5Cycles);
-  
-  /* ADC Calibration */
-  ADC_GetCalibrationFactor(ADC1);
-  
-  /* Enable ADC1 */
-  ADC_Cmd(ADC1, ENABLE);     
-  
-  /* Wait the ADCEN flag */
-  Timeout_SetTimeout1(50);   //Set timeout1 to 50ms
-  while(!ADC_GetFlagStatus(ADC1, ADC_FLAG_ADEN) && !Timeout_IsTimeout1()); 
-  if(Timeout_IsTimeout1()) Errors_SetError(ERROR_ADC_INIT);
-  else Errors_ResetError(ERROR_ADC_INIT);
-  
-  /* ADC1 regular Software Start Conv */ 
-  ADC_StartOfConversion(ADC1);
+  //Config_DAC_DMA();
+  Config_DAC();
+  Config_ADC1_DMA();
 }
 
 void Config_GPIO()
@@ -381,6 +303,27 @@ void Config_UART1()
   USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
   USART_Cmd(USART1, ENABLE);
 }
+
+void Config_DAC()
+{
+  GPIO_InitTypeDef GPIO_InitStructure;
+  DAC_InitTypeDef DAC_InitStructure;
+
+  //PA4 DAC Output
+  RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOB, ENABLE);
+  RCC_APB1PeriphClockCmd(RCC_APB1Periph_DAC, ENABLE);
+  
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;       //DAC Output
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AN;
+  GPIO_Init(GPIOA, &GPIO_InitStructure);
+  
+  DAC_InitStructure.DAC_OutputBuffer = DAC_OutputBuffer_Enable;
+  DAC_InitStructure.DAC_Trigger = DAC_Trigger_None;
+  DAC_Init(DAC_Channel_1, &DAC_InitStructure);
+  
+  DAC_Cmd(DAC_Channel_1, ENABLE);
+}
+
 void Config_DAC_DMA()
 {
   GPIO_InitTypeDef GPIO_InitStructure;
@@ -402,7 +345,7 @@ void Config_DAC_DMA()
   /* DMA1 Channel3 Config */
   DMA_DeInit(DMA1_Channel3);
   DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)&(DAC->DHR12R1);
-  DMA_InitStructure.DMA_MemoryBaseAddr = (u32)(&Sinus12bit130);
+  DMA_InitStructure.DMA_MemoryBaseAddr = (u32)(/*&Sinus12bit130*/0);
   DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST;
   DMA_InitStructure.DMA_BufferSize = 130;
   DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
@@ -435,4 +378,85 @@ void Config_TIM6()  /* Periodic DAC triggering */
   TIM_SelectOutputTrigger(TIM6, TIM_TRGOSource_Update);
   TIM_DMACmd(TIM6, TIM_DMA_Update, ENABLE);
   TIM_Cmd(TIM6, DISABLE);
+}
+
+void Config_ADC1_DMA()
+{
+  ADC_InitTypeDef ADC_InitStructure;
+  DMA_InitTypeDef DMA_InitStructure;
+  NVIC_InitTypeDef NVIC_InitStructure;
+  
+  /* ADC1 DeInit */  
+  ADC_DeInit(ADC1);
+  
+  /* ADC1 Periph clock enable */
+  RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
+  
+  /* DMA1 clock enable */
+  RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1 , ENABLE);
+  
+  /* DMA1 Channel1 Config */
+  DMA_DeInit(DMA1_Channel1);
+  DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)(&(ADC1->DR));
+  DMA_InitStructure.DMA_MemoryBaseAddr = (u32)(&ADC_Conv_Tab);
+  DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC;
+  DMA_InitStructure.DMA_BufferSize = 2;
+  DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+  DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+  DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord;
+  DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;
+  DMA_InitStructure.DMA_Mode = DMA_Mode_Circular;
+  DMA_InitStructure.DMA_Priority = DMA_Priority_High;
+  DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
+  DMA_Init(DMA1_Channel1, &DMA_InitStructure);
+  
+  /* DMA1 Channel1 enable */
+  DMA_Cmd(DMA1_Channel1, ENABLE);
+  
+  /* Enable the DMA channel 1 global Interrupt */
+  NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel1_IRQn;
+  NVIC_InitStructure.NVIC_IRQChannelPriority = 0;
+  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+  NVIC_Init(&NVIC_InitStructure);
+  
+  /* Enable Transfer Complete IT notification for DMA1 Channel 1 */
+  DMA_ITConfig(DMA1_Channel1, DMA1_IT_TC1, ENABLE);
+  
+  /* ADC DMA request in circular mode */
+  ADC_DMARequestModeConfig(ADC1, ADC_DMAMode_Circular);
+  
+  /* Enable ADC_DMA */
+  ADC_DMACmd(ADC1, ENABLE);  
+  
+  /* Initialize ADC structure */
+  ADC_StructInit(&ADC_InitStructure);
+  
+  /* Configure the ADC1 in continous mode withe a resolutuion equal to 12 bits  */
+  ADC_InitStructure.ADC_Resolution = ADC_Resolution_12b;
+  ADC_InitStructure.ADC_ContinuousConvMode = ENABLE; 
+  ADC_InitStructure.ADC_ExternalTrigConvEdge = ADC_ExternalTrigConvEdge_None;
+  ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
+  ADC_InitStructure.ADC_ScanDirection = ADC_ScanDirection_Backward;
+  ADC_Init(ADC1, &ADC_InitStructure); 
+  
+  /* Convert the ADC1 Vref  with 55.5 Cycles as sampling time */ 
+  ADC_ChannelConfig(ADC1, ADC_Channel_Vrefint, ADC_SampleTime_55_5Cycles); 
+  ADC_VrefintCmd(ENABLE);
+  /* Convert the ADC1 ADC_Channel_5  with 239.5 Cycles as sampling time */ 
+  ADC_ChannelConfig(ADC1, ADC_Channel_5, ADC_SampleTime_239_5Cycles);
+  
+  /* ADC Calibration */
+  ADC_GetCalibrationFactor(ADC1);
+  
+  /* Enable ADC1 */
+  ADC_Cmd(ADC1, ENABLE);     
+  
+  /* Wait the ADCEN flag */
+  Timeout_SetTimeout1(50);   //Set timeout1 to 50ms
+  while(!ADC_GetFlagStatus(ADC1, ADC_FLAG_ADEN) && !Timeout_IsTimeout1()); 
+  if(Timeout_IsTimeout1()) Errors_SetError(ERROR_ADC_INIT);
+  else Errors_ResetError(ERROR_ADC_INIT);
+  
+  /* ADC1 regular Software Start Conv */ 
+  ADC_StartOfConversion(ADC1);
 }

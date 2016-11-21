@@ -63,38 +63,31 @@ u16 cnt_flag_1000ms = 0;
 
 /* Buttons debouncing and repetition delay */
 #define DIG_IN_DEB_TIME   (u8)15    /* 30ms digital input debounce time */
-#define BTN_REPEAT_4 (u16)125
-#define BTN_REPEAT_6 (u16)83
-#define BTN_REPEAT_8 (u16)62
-static u16 btn_freqinc_delay = BTN_DELAY_300ms;
-static u16 btn_freqdec_delay = BTN_DELAY_300ms;
-static u16 btn_freqduty_delay = BTN_DELAY_300ms;
-static u16 btn_chgwave_delay = BTN_DELAY_300ms;
-u8 btn_freqinc_0_cnt = 0;
-u8 btn_freqinc_1_cnt = 0;
-volatile u8 BTN_FREQINC_DEB_STATE = BTN_DEPRESSED;
-u8 btn_freqdec_0_cnt = 0;
-u8 btn_freqdec_1_cnt = 0;
-volatile u8 BTN_FREQDEC_DEB_STATE = BTN_DEPRESSED;
-u8 btn_freqduty_0_cnt = 0;
-u8 btn_freqduty_1_cnt = 0;
-volatile u8 BTN_FREQDUTY_DEB_STATE = BTN_DEPRESSED;
-u8 btn_chgwave_0_cnt = 0;
-u8 btn_chgwave_1_cnt = 0;
-volatile u8 BTN_CHGWAVE_DEB_STATE = BTN_DEPRESSED;
+#define BTN_REPEAT_4      (u16)125
+#define BTN_REPEAT_6      (u16)83
+#define BTN_REPEAT_8      (u16)62
+static u16 btn_mode_delay = BTN_DELAY_300ms;
+static u16 btn_dec_delay  = BTN_DELAY_300ms;
+static u16 btn_inc_delay  = BTN_DELAY_300ms;
+u8 btn_mode_0_cnt = 0;
+u8 btn_mode_1_cnt = 0;
+volatile u8 BTN_MODE_DEB_STATE = BTN_DEPRESSED;
+u8 btn_dec_0_cnt = 0;
+u8 btn_dec_1_cnt = 0;
+volatile u8 BTN_DEC_DEB_STATE = BTN_DEPRESSED;
+u8 btn_inc_0_cnt = 0;
+u8 btn_inc_1_cnt = 0;
+volatile u8 BTN_INC_DEB_STATE = BTN_DEPRESSED;
 
-_Bool BTN_FREQINC_DELAY_FLAG = FALSE;
-u16 btn_freqinc_delay_cnt = 0;
-u16 BTN_FREQINC_press_timer = 0;
-_Bool BTN_FREQDEC_DELAY_FLAG = FALSE;
-u16 btn_freqdec_delay_cnt = 0;
-u16 BTN_FREQDEC_press_timer = 0;
-_Bool BTN_FREQDUTY_DELAY_FLAG = FALSE;
-u16 btn_freqduty_delay_cnt = 0;
-u16 BTN_FREQDUTY_press_timer = 0;
-_Bool BTN_CHGWAVE_DELAY_FLAG = FALSE;
-u16 btn_chgwave_delay_cnt = 0;
-u16 BTN_CHGWAVE_press_timer = 0;
+_Bool BTN_MODE_DELAY_FLAG = FALSE;
+u16 btn_mode_delay_cnt = 0;
+u16 BTN_MODE_press_timer = 0;
+_Bool BTN_DEC_DELAY_FLAG = FALSE;
+u16 btn_dec_delay_cnt = 0;
+u16 BTN_DEC_press_timer = 0;
+_Bool BTN_INC_DELAY_FLAG = FALSE;
+u16 btn_inc_delay_cnt = 0;
+u16 BTN_INC_press_timer = 0;
 /*========================================*/
 
 // ===== UART Receive =====
@@ -163,7 +156,7 @@ void DMA1_Channel1_IRQHandler()
         ADC_Conv_Tab_Avg[i] = ADC_Conv_Tab_Avg_Acc[i] / CAL.ADC_Samp_Avg;
         ADC_Conv_Tab_Avg_Acc[i] = 0;
       }
-      ADC_Conv_Tab_Avg[0] = (u16)((ADC_Conv_Tab_Avg[0] * VrefINT_CAL) / ADC_Conv_Tab_Avg[1]);
+      //ADC_Conv_Tab_Avg[0] = (u16)((ADC_Conv_Tab_Avg[0] * VrefINT_CAL) / ADC_Conv_Tab_Avg[1]);   //Voltage correction based on Vref
       FLAG_ADC_NewData = TRUE;
     }
   }
@@ -273,149 +266,115 @@ void TIM3_IRQHandler(void)
     /* Debounce BTN FREQINC */
     if(!BTN_FREQINC_STATE)
     {
-      if(btn_freqinc_0_cnt < U8_MAX) btn_freqinc_0_cnt++;
-      btn_freqinc_1_cnt = 0;
-      if(btn_freqinc_0_cnt >= DIG_IN_DEB_TIME)
+      if(btn_mode_0_cnt < U8_MAX) btn_mode_0_cnt++;
+      btn_mode_1_cnt = 0;
+      if(btn_mode_0_cnt >= DIG_IN_DEB_TIME)
       {
-        BTN_FREQINC_DEB_STATE = BTN_PRESSED;
+        BTN_MODE_DEB_STATE = BTN_PRESSED;
       }
     }
     else
     {
-      if(btn_freqinc_1_cnt < U8_MAX) btn_freqinc_1_cnt++;
-      btn_freqinc_0_cnt = 0;
-      if(btn_freqinc_1_cnt >= DIG_IN_DEB_TIME)
+      if(btn_mode_1_cnt < U8_MAX) btn_mode_1_cnt++;
+      btn_mode_0_cnt = 0;
+      if(btn_mode_1_cnt >= DIG_IN_DEB_TIME)
       {
-        BTN_FREQINC_DEB_STATE = BTN_DEPRESSED;
-        BTN_FREQINC_press_timer = 0;
-        btn_freqinc_delay = BTN_DELAY_300ms;
+        BTN_MODE_DEB_STATE = BTN_DEPRESSED;
+        BTN_MODE_press_timer = 0;
+        btn_mode_delay = BTN_DELAY_300ms;
       }
     }
     /* Debounce BTN FREQDEC */
     if(!BTN_FREQDEC_STATE)
     {
-      if(btn_freqdec_0_cnt < U8_MAX) btn_freqdec_0_cnt++;
-      btn_freqdec_1_cnt = 0;
-      if(btn_freqdec_0_cnt >= DIG_IN_DEB_TIME)
+      if(btn_dec_0_cnt < U8_MAX) btn_dec_0_cnt++;
+      btn_dec_1_cnt = 0;
+      if(btn_dec_0_cnt >= DIG_IN_DEB_TIME)
       {
-        BTN_FREQDEC_DEB_STATE = BTN_PRESSED;
+        BTN_DEC_DEB_STATE = BTN_PRESSED;
       }
     }
     else
     {
-      if(btn_freqdec_1_cnt < U8_MAX) btn_freqdec_1_cnt++;
-      btn_freqdec_0_cnt = 0;
-      if(btn_freqdec_1_cnt >= DIG_IN_DEB_TIME)
+      if(btn_dec_1_cnt < U8_MAX) btn_dec_1_cnt++;
+      btn_dec_0_cnt = 0;
+      if(btn_dec_1_cnt >= DIG_IN_DEB_TIME)
       {
-        BTN_FREQDEC_DEB_STATE = BTN_DEPRESSED;
-        BTN_FREQDEC_press_timer = 0;
-        btn_freqdec_delay = BTN_DELAY_300ms;
+        BTN_DEC_DEB_STATE = BTN_DEPRESSED;
+        BTN_DEC_press_timer = 0;
+        btn_dec_delay = BTN_DELAY_300ms;
       }
     }
     /* Debounce BTN FREQDUTY */
     if(!BTN_FREQDUTY_STATE)
     {
-      if(btn_freqduty_0_cnt < U8_MAX) btn_freqduty_0_cnt++;
-      btn_freqduty_1_cnt = 0;
-      if(btn_freqduty_0_cnt >= DIG_IN_DEB_TIME)
+      if(btn_inc_0_cnt < U8_MAX) btn_inc_0_cnt++;
+      btn_inc_1_cnt = 0;
+      if(btn_inc_0_cnt >= DIG_IN_DEB_TIME)
       {
-        BTN_FREQDUTY_DEB_STATE = BTN_PRESSED;
+        BTN_INC_DEB_STATE = BTN_PRESSED;
       }
     }
     else
     {
-      if(btn_freqduty_1_cnt < U8_MAX) btn_freqduty_1_cnt++;
-      btn_freqduty_0_cnt = 0;
-      if(btn_freqduty_1_cnt >= DIG_IN_DEB_TIME)
+      if(btn_inc_1_cnt < U8_MAX) btn_inc_1_cnt++;
+      btn_inc_0_cnt = 0;
+      if(btn_inc_1_cnt >= DIG_IN_DEB_TIME)
       {
-        BTN_FREQDUTY_DEB_STATE = BTN_DEPRESSED;
-        BTN_FREQDUTY_press_timer = 0;
-	btn_freqduty_delay = BTN_DELAY_300ms;
-      }
-    }
-    /* Debounce BTN CHGWAVE */
-    if(!BTN_CHGWAVE_STATE)
-    {
-      if(btn_chgwave_0_cnt < U8_MAX) btn_chgwave_0_cnt++;
-      btn_chgwave_1_cnt = 0;
-      if(btn_chgwave_0_cnt >= DIG_IN_DEB_TIME)
-      {
-        BTN_CHGWAVE_DEB_STATE = BTN_PRESSED;
-      }
-    }
-    else
-    {
-      if(btn_chgwave_1_cnt < U8_MAX) btn_chgwave_1_cnt++;
-      btn_chgwave_0_cnt = 0;
-      if(btn_chgwave_1_cnt >= DIG_IN_DEB_TIME)
-      {
-        BTN_CHGWAVE_DEB_STATE = BTN_DEPRESSED;
-        BTN_CHGWAVE_press_timer = 0;
-	btn_chgwave_delay = BTN_DELAY_300ms;
+        BTN_INC_DEB_STATE = BTN_DEPRESSED;
+        BTN_INC_press_timer = 0;
+	btn_inc_delay = BTN_DELAY_300ms;
       }
     }
     /* Record button press time and adjust delay */
-    if(BTN_FREQINC_DEB_STATE == BTN_PRESSED)
+    if(BTN_MODE_DEB_STATE == BTN_PRESSED)
     {
-      if(BTN_FREQINC_press_timer < U16_MAX) BTN_FREQINC_press_timer++;
-      if(BTN_FREQINC_press_timer > BTN_DELAY_1000ms &&\
-         BTN_FREQINC_press_timer < BTN_DELAY_2500ms)          btn_freqinc_delay = BTN_REPEAT_4;
-      else if(BTN_FREQINC_press_timer >= BTN_DELAY_2500ms &&\
-         BTN_FREQINC_press_timer < BTN_DELAY_5000ms)          btn_freqinc_delay = BTN_REPEAT_6;
-      else if(BTN_FREQINC_press_timer >= BTN_DELAY_5000ms)    btn_freqinc_delay = BTN_REPEAT_8;
+      if(BTN_MODE_press_timer < U16_MAX) BTN_MODE_press_timer++;
+      if(BTN_MODE_press_timer > BTN_DELAY_1000ms &&\
+         BTN_MODE_press_timer < BTN_DELAY_2500ms)          btn_mode_delay = BTN_REPEAT_4;
+      else if(BTN_MODE_press_timer >= BTN_DELAY_2500ms &&\
+         BTN_MODE_press_timer < BTN_DELAY_5000ms)          btn_mode_delay = BTN_REPEAT_6;
+      else if(BTN_MODE_press_timer >= BTN_DELAY_5000ms)    btn_mode_delay = BTN_REPEAT_8;
     }
-    if(BTN_FREQDEC_DEB_STATE == BTN_PRESSED)
+    if(BTN_DEC_DEB_STATE == BTN_PRESSED)
     {
-      if(BTN_FREQDEC_press_timer < U16_MAX) BTN_FREQDEC_press_timer++;
-      if(BTN_FREQDEC_press_timer > BTN_DELAY_1000ms && \
-         BTN_FREQDEC_press_timer < BTN_DELAY_2500ms)       btn_freqdec_delay = BTN_REPEAT_4;
-      else if(BTN_FREQDEC_press_timer >= BTN_DELAY_2500ms && \
-         BTN_FREQDEC_press_timer < BTN_DELAY_5000ms)       btn_freqdec_delay = BTN_REPEAT_6;
-      else if(BTN_FREQDEC_press_timer >= BTN_DELAY_5000ms) btn_freqdec_delay = BTN_REPEAT_8;
+      if(BTN_DEC_press_timer < U16_MAX) BTN_DEC_press_timer++;
+      if(BTN_DEC_press_timer > BTN_DELAY_1000ms && \
+         BTN_DEC_press_timer < BTN_DELAY_2500ms)       btn_dec_delay = BTN_REPEAT_4;
+      else if(BTN_DEC_press_timer >= BTN_DELAY_2500ms && \
+         BTN_DEC_press_timer < BTN_DELAY_5000ms)       btn_dec_delay = BTN_REPEAT_6;
+      else if(BTN_DEC_press_timer >= BTN_DELAY_5000ms) btn_dec_delay = BTN_REPEAT_8;
     }
-    if(BTN_FREQDUTY_DEB_STATE == BTN_PRESSED)
+    if(BTN_INC_DEB_STATE == BTN_PRESSED)
     {
-      if(BTN_FREQDUTY_press_timer < U16_MAX) BTN_FREQDUTY_press_timer++;
-    }
-    if(BTN_CHGWAVE_DEB_STATE == BTN_PRESSED)
-    {
-      if(BTN_CHGWAVE_press_timer < U16_MAX) BTN_CHGWAVE_press_timer++;
+      if(BTN_INC_press_timer < U16_MAX) BTN_INC_press_timer++;
     }
     /* Process button repetition rate delays */
-    if(!BTN_FREQINC_DELAY_FLAG)
+    if(!BTN_MODE_DELAY_FLAG)
     {
-      btn_freqinc_delay_cnt++;
-      if(btn_freqinc_delay_cnt >= btn_freqinc_delay)
+      btn_mode_delay_cnt++;
+      if(btn_mode_delay_cnt >= btn_mode_delay)
       {
-        btn_freqinc_delay_cnt = 0;
-        BTN_FREQINC_DELAY_FLAG = TRUE;
+        btn_mode_delay_cnt = 0;
+        BTN_MODE_DELAY_FLAG = TRUE;
       }
     }
-    if(!BTN_FREQDEC_DELAY_FLAG)
+    if(!BTN_DEC_DELAY_FLAG)
     {
-      btn_freqdec_delay_cnt++;
-      if(btn_freqdec_delay_cnt >= btn_freqdec_delay)
+      btn_dec_delay_cnt++;
+      if(btn_dec_delay_cnt >= btn_dec_delay)
       {
-        btn_freqdec_delay_cnt = 0;
-        BTN_FREQDEC_DELAY_FLAG = TRUE;
+        btn_dec_delay_cnt = 0;
+        BTN_DEC_DELAY_FLAG = TRUE;
       }
     }
-    if(!BTN_FREQDUTY_DELAY_FLAG)
+    if(!BTN_INC_DELAY_FLAG)
     {
-      btn_freqduty_delay_cnt++;
-      if(btn_freqduty_delay_cnt >= btn_freqduty_delay)
+      btn_inc_delay_cnt++;
+      if(btn_inc_delay_cnt >= btn_inc_delay)
       {
-        btn_freqduty_delay_cnt = 0;
-        BTN_FREQDUTY_DELAY_FLAG = TRUE;
-      }
-    }
-    if(!BTN_CHGWAVE_DELAY_FLAG)
-    {
-      btn_chgwave_delay_cnt++;
-      if(btn_chgwave_delay_cnt >= btn_chgwave_delay)
-      {
-        btn_chgwave_delay_cnt = 0;
-        BTN_CHGWAVE_DELAY_FLAG = TRUE;
+        btn_inc_delay_cnt = 0;
+        BTN_INC_DELAY_FLAG = TRUE;
       }
     }
     /* ======================================= */

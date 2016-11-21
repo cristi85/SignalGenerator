@@ -1,1 +1,1 @@
-# SignalGenerator
+# Programmable Load

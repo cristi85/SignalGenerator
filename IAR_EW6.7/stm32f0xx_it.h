@@ -49,18 +49,15 @@
 /* Exported constants --------------------------------------------------------*/
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions ------------------------------------------------------- */
-extern volatile u8 BTN_FREQINC_DEB_STATE;
-extern volatile u8 BTN_FREQDEC_DEB_STATE;
-extern volatile u8 BTN_FREQDUTY_DEB_STATE;
-extern volatile u8 BTN_CHGWAVE_DEB_STATE;
-extern _Bool BTN_FREQINC_DELAY_FLAG;
-extern _Bool BTN_FREQDEC_DELAY_FLAG;
-extern _Bool BTN_FREQDUTY_DELAY_FLAG;
-extern _Bool BTN_CHGWAVE_DELAY_FLAG;
-extern u16 BTN_FREQINC_press_timer;
-extern u16 BTN_FREQDEC_press_timer;
-extern u16 BTN_FREQDUTY_press_timer;
-extern u16 BTN_CHGWAVE_press_timer;
+extern volatile u8 BTN_MODE_DEB_STATE;
+extern volatile u8 BTN_DEC_DEB_STATE;
+extern volatile u8 BTN_INC_DEB_STATE;
+extern _Bool BTN_MODE_DELAY_FLAG;
+extern _Bool BTN_DEC_DELAY_FLAG;
+extern _Bool BTN_INC_DELAY_FLAG;
+extern u16 BTN_MODE_press_timer;
+extern u16 BTN_DEC_press_timer;
+extern u16 BTN_INC_press_timer;
 
 extern _Bool FLAG_250ms;
 extern _Bool FLAG_500ms;
