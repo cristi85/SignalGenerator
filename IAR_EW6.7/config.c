@@ -25,7 +25,7 @@ void Config()
   RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
   
   Config_GPIO();
-  Config_UART1();
+  //Config_UART1();
   //Config_TIM1();     /* Configure TIM1_CH1 as PWM output on PA8 (PWM1 Output) */
   //Config_TIM2();     /* Configure TIM2_CH4 as PWM output on PA3 (PWM2 Output) */
   Config_TIM3();     /* Periodic 2ms interrupt */
@@ -44,36 +44,22 @@ void Config_GPIO()
   RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOA, ENABLE);
   RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOB, ENABLE);
   
-  /* GPIOA */
+  /* ANALOG PINS CONFIGURATION */
+  
   /* DAC OUT - analog OUTPUT */
   GPIO_InitStructure.GPIO_Pin   = DAC_PIN;
   GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AN;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-  GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL ;
   GPIO_Init(DAC_PORT, &GPIO_InitStructure);
-  /* Analog Inputs */
-  /* POTENTIOMETER - analog INPUT */
-  GPIO_InitStructure.GPIO_Pin   = POTENTIOMETER_PIN;
-  GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AN;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-  GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL;
-  GPIO_Init(POTENTIOMETER_PORT, &GPIO_InitStructure);
   /* CURRENT - analog INPUT */
   GPIO_InitStructure.GPIO_Pin   = CURRENT_PIN;
   GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AN;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-  GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL;
   GPIO_Init(CURRENT_PORT, &GPIO_InitStructure);
   /* VOLTAGE - analog INPUT */
   GPIO_InitStructure.GPIO_Pin   = VOLTAGE_PIN;
   GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AN;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-  GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL;
   GPIO_Init(VOLTAGE_PORT, &GPIO_InitStructure);
+  
+  /* DIGITAL PINS CONFIGURATION */
   
   /* LCD RS - digital OUTPUT */
   GPIO_InitStructure.GPIO_Pin   = LCD_RS_PIN;
@@ -82,23 +68,6 @@ void Config_GPIO()
   GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
   GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL;
   GPIO_Init(LCD_RS_PORT, &GPIO_InitStructure);
-  /* LCD D7 - digital OUTPUT */
-  GPIO_InitStructure.GPIO_Pin = LCD_D7_PIN;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-  GPIO_Init(LCD_D7_PORT, &GPIO_InitStructure);
-  /* USART - digital I/O */
-  GPIO_InitStructure.GPIO_Pin =  USART_RX_PIN | USART_TX_PIN;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-  GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
-  GPIO_Init(USART_PORT, &GPIO_InitStructure);
-  /*-----------end GPIOA------------*/
-  
-  /* GPIOB */
   /* LCD E - digital OUTPUT */
   GPIO_InitStructure.GPIO_Pin   = LCD_EN_PIN;
   GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_OUT;
@@ -127,6 +96,13 @@ void Config_GPIO()
   GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
   GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL;
   GPIO_Init(LCD_D6_PORT, &GPIO_InitStructure);
+  /* LCD D7 - digital OUTPUT */
+  GPIO_InitStructure.GPIO_Pin = LCD_D7_PIN;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+  GPIO_Init(LCD_D7_PORT, &GPIO_InitStructure);
   /* LCD BACKLIGHT - digital OUTPUT */
   GPIO_InitStructure.GPIO_Pin   = LCD_LIGHT_PIN;
   GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_OUT;
@@ -135,13 +111,20 @@ void Config_GPIO()
   GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL;
   GPIO_Init(LCD_LIGHT_PORT, &GPIO_InitStructure);
   /* BTN1, BTN2, BTN3, BTN4 - digital INPUT */
-  GPIO_InitStructure.GPIO_Pin = BTN_FREQINC_PIN | BTN_FREQDEC_PIN | BTN_FREQDUTY_PIN | BTN_CHGWAVE_PIN;
+  GPIO_InitStructure.GPIO_Pin = BTN_INC_PIN | BTN_DEC_PIN | BTN_MODE_PIN;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
   GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
   GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
   GPIO_Init(BTN_PORT, &GPIO_InitStructure);
-  /* -----------end GPIOB------------ */
+
+  /* USART - digital I/O */
+  GPIO_InitStructure.GPIO_Pin =  USART_RX_PIN | USART_TX_PIN;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+  GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+  GPIO_Init(USART_PORT, &GPIO_InitStructure);
   
   LCD_LIGHT_HIGH;
   LCD_RS(0);

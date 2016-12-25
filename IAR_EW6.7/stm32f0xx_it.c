@@ -34,7 +34,7 @@
 #include "config.h"
 
 //ADC measurements
-extern volatile u16 ADC_Conv_Tab_Avg[ADC_Scan_Channels];
+volatile u16 ADC_Conv_Tab_Avg[ADC_Scan_Channels];
 u32 ADC_Conv_Tab_Avg_Acc[ADC_Scan_Channels];
 volatile u16 ADC_Conv_Tab[ADC_Scan_Channels];
 u8 adc_samp_avg_cnt = 0;
@@ -50,6 +50,9 @@ _Bool FLAG_ADC_NewData = FALSE;
   */
 
 /* Periodic Tasks */
+#define CNTVAL_10MS  (u8)5
+_Bool FLAG_10ms = FALSE;
+u8 cnt_flag_10ms = 0;
 #define CNTVAL_250MS  (u16)125
 _Bool FLAG_250ms = FALSE;
 u16 cnt_flag_250ms = 0;
@@ -66,53 +69,31 @@ u16 cnt_flag_1000ms = 0;
 #define BTN_REPEAT_4      (u16)125
 #define BTN_REPEAT_6      (u16)83
 #define BTN_REPEAT_8      (u16)62
-static u16 btn_mode_delay = BTN_DELAY_300ms;
-static u16 btn_dec_delay  = BTN_DELAY_300ms;
 static u16 btn_inc_delay  = BTN_DELAY_300ms;
-u8 btn_mode_0_cnt = 0;
-u8 btn_mode_1_cnt = 0;
-volatile u8 BTN_MODE_DEB_STATE = BTN_DEPRESSED;
-u8 btn_dec_0_cnt = 0;
-u8 btn_dec_1_cnt = 0;
-volatile u8 BTN_DEC_DEB_STATE = BTN_DEPRESSED;
+static u16 btn_dec_delay  = BTN_DELAY_300ms;
+static u16 btn_mode_delay = BTN_DELAY_300ms;
 u8 btn_inc_0_cnt = 0;
 u8 btn_inc_1_cnt = 0;
 volatile u8 BTN_INC_DEB_STATE = BTN_DEPRESSED;
+u8 btn_dec_0_cnt = 0;
+u8 btn_dec_1_cnt = 0;
+volatile u8 BTN_DEC_DEB_STATE = BTN_DEPRESSED;
+u8 btn_mode_0_cnt = 0;
+u8 btn_mode_1_cnt = 0;
+volatile u8 BTN_MODE_DEB_STATE = BTN_DEPRESSED;
 
-_Bool BTN_MODE_DELAY_FLAG = FALSE;
-u16 btn_mode_delay_cnt = 0;
-u16 BTN_MODE_press_timer = 0;
-_Bool BTN_DEC_DELAY_FLAG = FALSE;
-u16 btn_dec_delay_cnt = 0;
-u16 BTN_DEC_press_timer = 0;
 _Bool BTN_INC_DELAY_FLAG = FALSE;
 u16 btn_inc_delay_cnt = 0;
 u16 BTN_INC_press_timer = 0;
+_Bool BTN_DEC_DELAY_FLAG = FALSE;
+u16 btn_dec_delay_cnt = 0;
+u16 BTN_DEC_press_timer = 0;
+_Bool BTN_MODE_DELAY_FLAG = FALSE;
+u16 btn_mode_delay_cnt = 0;
+u16 BTN_MODE_press_timer = 0;
 /*========================================*/
 
-// ===== UART Receive =====
-#define UART_TIMEOUT (u8)50   /* 100ms */
-UART_CMD_T UART_CMD;
-u8 UARTrcvbuffidx = 0;
-u8 UARTdatachksum;
-u8 UARTcmd;
-u8 UARTdatalen;
-u8 UARTtimeoutcnt = 0;
-_Bool FLAG_UART_timeout_started = FALSE;
-typedef enum {
-          UART_RCV_CMD          = 0,
-          UART_RCV_CMD_NEG      = 1,
-          UART_RCV_DATALEN      = 2,
-          UART_RCV_DATALEN_NEG  = 3,
-          UART_RCV_DATA         = 4,
-          UART_RCV_CHKSUM       = 5
-} UART_RcvState_t;
-UART_RcvState_t UART_rcv_state = UART_RCV_CMD;
-_Bool FLAG_UART_cmd_rcv = FALSE;
-// ===== END UART Receive =====
-
 /* Public variables */
-volatile _Bool FLAG_UARTcmdRcv = FALSE;
 
 /* External variables */
 extern _Bool Timeout_istout1;
@@ -139,8 +120,8 @@ void DMA1_Channel1_IRQHandler()
 {
   u8 i;
   /* DMA1 Channel1 Transfer Complete interrupt handler - DMA has transferred ADC data to ADC_Conv_Tab */
-  /* Vref, PA8, PA5 */
-  /* Vref, Pot, I, U */
+  /* Vref, PA3, PA5 */
+  /* Vref, U, I */
   if(!FLAG_ADC_NewData)
   {
     for(i = 0; i < ADC_Scan_Channels; i++)
@@ -233,6 +214,12 @@ void TIM3_IRQHandler(void)
   if(TIM_GetITStatus(TIM3, TIM_IT_Update))  //2ms
   {
     /* ===== CKECK PERIODIC TASKS FLAGS ===== */
+    if(cnt_flag_10ms < U8_MAX) cnt_flag_10ms++;
+    if(cnt_flag_10ms >= CNTVAL_10MS) 
+    {
+      cnt_flag_10ms = 0;
+      FLAG_10ms = TRUE;
+    }
     if(cnt_flag_250ms < U16_MAX) cnt_flag_250ms++;
     if(cnt_flag_250ms >= CNTVAL_250MS) 
     {
@@ -263,7 +250,7 @@ void TIM3_IRQHandler(void)
       if(Timeout_toutcnt2 >= Timeout_tout2) Timeout_istout2 = TRUE;
     }
     /* ========== DEBOUNCE INPUTS ========== 2MS */
-    /* Debounce BTN FREQINC */
+    /* Debounce BTN INC */
     if(!BTN_FREQINC_STATE)
     {
       if(btn_mode_0_cnt < U8_MAX) btn_mode_0_cnt++;
@@ -284,7 +271,7 @@ void TIM3_IRQHandler(void)
         btn_mode_delay = BTN_DELAY_300ms;
       }
     }
-    /* Debounce BTN FREQDEC */
+    /* Debounce BTN DEC */
     if(!BTN_FREQDEC_STATE)
     {
       if(btn_dec_0_cnt < U8_MAX) btn_dec_0_cnt++;
@@ -305,7 +292,7 @@ void TIM3_IRQHandler(void)
         btn_dec_delay = BTN_DELAY_300ms;
       }
     }
-    /* Debounce BTN FREQDUTY */
+    /* Debounce BTN MODE */
     if(!BTN_FREQDUTY_STATE)
     {
       if(btn_inc_0_cnt < U8_MAX) btn_inc_0_cnt++;
@@ -327,36 +314,32 @@ void TIM3_IRQHandler(void)
       }
     }
     /* Record button press time and adjust delay */
-    if(BTN_MODE_DEB_STATE == BTN_PRESSED)
+    if(BTN_INC_DEB_STATE == BTN_PRESSED)
     {
-      if(BTN_MODE_press_timer < U16_MAX) BTN_MODE_press_timer++;
-      if(BTN_MODE_press_timer > BTN_DELAY_1000ms &&\
-         BTN_MODE_press_timer < BTN_DELAY_2500ms)          btn_mode_delay = BTN_REPEAT_4;
-      else if(BTN_MODE_press_timer >= BTN_DELAY_2500ms &&\
-         BTN_MODE_press_timer < BTN_DELAY_5000ms)          btn_mode_delay = BTN_REPEAT_6;
-      else if(BTN_MODE_press_timer >= BTN_DELAY_5000ms)    btn_mode_delay = BTN_REPEAT_8;
+      if(BTN_INC_press_timer < U16_MAX) BTN_INC_press_timer++;
+      if(BTN_INC_press_timer > BTN_DELAY_1000ms && BTN_INC_press_timer < BTN_DELAY_2500ms)       btn_inc_delay = BTN_REPEAT_4;
+      else if(BTN_INC_press_timer >= BTN_DELAY_2500ms && BTN_INC_press_timer < BTN_DELAY_5000ms) btn_inc_delay = BTN_REPEAT_6;
+      else if(BTN_INC_press_timer >= BTN_DELAY_5000ms)                                           btn_inc_delay = BTN_REPEAT_8;
     }
     if(BTN_DEC_DEB_STATE == BTN_PRESSED)
     {
       if(BTN_DEC_press_timer < U16_MAX) BTN_DEC_press_timer++;
-      if(BTN_DEC_press_timer > BTN_DELAY_1000ms && \
-         BTN_DEC_press_timer < BTN_DELAY_2500ms)       btn_dec_delay = BTN_REPEAT_4;
-      else if(BTN_DEC_press_timer >= BTN_DELAY_2500ms && \
-         BTN_DEC_press_timer < BTN_DELAY_5000ms)       btn_dec_delay = BTN_REPEAT_6;
-      else if(BTN_DEC_press_timer >= BTN_DELAY_5000ms) btn_dec_delay = BTN_REPEAT_8;
+      if(BTN_DEC_press_timer > BTN_DELAY_1000ms && BTN_DEC_press_timer < BTN_DELAY_2500ms)       btn_dec_delay = BTN_REPEAT_4;
+      else if(BTN_DEC_press_timer >= BTN_DELAY_2500ms && BTN_DEC_press_timer < BTN_DELAY_5000ms) btn_dec_delay = BTN_REPEAT_6;
+      else if(BTN_DEC_press_timer >= BTN_DELAY_5000ms)                                           btn_dec_delay = BTN_REPEAT_8;
     }
-    if(BTN_INC_DEB_STATE == BTN_PRESSED)
+    if(BTN_MODE_DEB_STATE == BTN_PRESSED)
     {
-      if(BTN_INC_press_timer < U16_MAX) BTN_INC_press_timer++;
+      if(BTN_MODE_press_timer < U16_MAX) BTN_MODE_press_timer++;
     }
     /* Process button repetition rate delays */
-    if(!BTN_MODE_DELAY_FLAG)
+    if(!BTN_INC_DELAY_FLAG)
     {
-      btn_mode_delay_cnt++;
-      if(btn_mode_delay_cnt >= btn_mode_delay)
+      btn_inc_delay_cnt++;
+      if(btn_inc_delay_cnt >= btn_inc_delay)
       {
-        btn_mode_delay_cnt = 0;
-        BTN_MODE_DELAY_FLAG = TRUE;
+        btn_inc_delay_cnt = 0;
+        BTN_INC_DELAY_FLAG = TRUE;
       }
     }
     if(!BTN_DEC_DELAY_FLAG)
@@ -368,22 +351,16 @@ void TIM3_IRQHandler(void)
         BTN_DEC_DELAY_FLAG = TRUE;
       }
     }
-    if(!BTN_INC_DELAY_FLAG)
+    if(!BTN_MODE_DELAY_FLAG)
     {
-      btn_inc_delay_cnt++;
-      if(btn_inc_delay_cnt >= btn_inc_delay)
+      btn_mode_delay_cnt++;
+      if(btn_mode_delay_cnt >= btn_mode_delay)
       {
-        btn_inc_delay_cnt = 0;
-        BTN_INC_DELAY_FLAG = TRUE;
+        btn_mode_delay_cnt = 0;
+        BTN_MODE_DELAY_FLAG = TRUE;
       }
     }
     /* ======================================= */
-    // ====== CHECK UART COMMUNICATION TIMEOUT ======
-    if(UARTtimeoutcnt < U8_MAX) UARTtimeoutcnt++;
-    if(UARTtimeoutcnt >= UART_TIMEOUT)
-    {
-      UART_rcv_state = UART_RCV_CMD;
-    }
     
     TIM_ClearITPendingBit(TIM3, TIM_IT_Update);        // clear TIM1 CC2 interrupt flag
   }
@@ -391,124 +368,7 @@ void TIM3_IRQHandler(void)
 
 void USART1_IRQHandler(void)
 {
-  if(USART_GetITStatus(USART1, USART_IT_RXNE) != RESET)
-  {
-    u8 uart_rx = USART_ReceiveData(USART1);
-    UARTtimeoutcnt = 0;     //reset timeout counter
-    if(!FLAG_UART_cmd_rcv)  //if previously received command was processed by application, store in buffer, else discard sent data
-    {
-      switch(UART_rcv_state)
-      {
-        case UART_RCV_CMD:
-        {
-          UART_CMD.CMD = uart_rx;
-          UART_rcv_state = UART_RCV_CMD_NEG;
-          break;
-        }
-        case UART_RCV_CMD_NEG:
-        {
-          uart_rx = (u8)(~uart_rx);
-          if(UART_CMD.CMD == uart_rx)
-          {
-            UART_rcv_state = UART_RCV_DATALEN;
-            UARTrcvbuffidx = 0;
-          }
-          else
-          {
-            UART_rcv_state = UART_RCV_CMD;
-            //acknowledge command validation failed
-            while(!USART_GetFlagStatus(USART1, USART_FLAG_TXE));
-            USART_SendData(USART1, 0x1F);
-          }
-          break;
-        }
-        case UART_RCV_DATALEN:
-        {
-          UART_CMD.DATAlen = uart_rx;
-          UART_rcv_state = UART_RCV_DATALEN_NEG;
-          break;
-        }
-        case UART_RCV_DATALEN_NEG:
-        {
-          uart_rx = (u8)(~uart_rx);
-          if(UART_CMD.DATAlen == uart_rx)
-          {
-            if(UART_CMD.DATAlen > UARTBUFFSIZE)
-            {
-              UART_rcv_state = UART_RCV_CMD;
-              //acknowledge data length too long failed
-              while(!USART_GetFlagStatus(USART1, USART_FLAG_TXE));
-              USART_SendData(USART1, 0x3F);
-            }
-            else if(UART_CMD.DATAlen == 0)
-            {
-              FLAG_UART_cmd_rcv = TRUE;
-              //send message received correct acknowledge
-              while(!USART_GetFlagStatus(USART1, USART_FLAG_TXE));
-              USART_SendData(USART1, 0x10);
-            }
-            else UART_rcv_state = UART_RCV_DATA;
-          }
-          else
-          {
-            UART_rcv_state = UART_RCV_CMD;
-            //acknowledge data length validation failed
-            while(!USART_GetFlagStatus(USART1, USART_FLAG_TXE));
-            USART_SendData(USART1, 0x2F);
-          }
-          break;
-        }
-        case UART_RCV_DATA:
-        {
-          if(UARTrcvbuffidx < UART_CMD.DATAlen)
-          {
-            UART_CMD.DATA[UARTrcvbuffidx++] = uart_rx;
-            if(UARTrcvbuffidx == UART_CMD.DATAlen)
-            {
-              UART_rcv_state = UART_RCV_CHKSUM;
-            }
-          }
-          break;
-        }
-        case UART_RCV_CHKSUM:
-        {
-          u8 calcchksum = 0, i;
-          UARTdatachksum = uart_rx;
-          //calculate received data checksum
-          for(i = 0; i < UARTrcvbuffidx; i++)
-          {
-            calcchksum += UART_CMD.DATA[i];
-          }
-          calcchksum = (u8)(~calcchksum);
-          //compare with received checksum
-          if(calcchksum == UARTdatachksum)
-          {
-            FLAG_UART_cmd_rcv = TRUE;
-            //send message received correct acknowledge
-            while(!USART_GetFlagStatus(USART1, USART_FLAG_TXE));
-            USART_SendData(USART1, 0x10);
-          }
-          else
-          {
-            //send message received ok but checksum failed
-            while(!USART_GetFlagStatus(USART1, USART_FLAG_TXE));
-            USART_SendData(USART1, 0x4F);
-          }
-          UART_rcv_state = UART_RCV_CMD;
-        
-          break;
-        }
-        default : break;
-      }
-    }
-    else
-    {
-      // if previously received command was not processed by application ,discard data and send information byte
-      while(!USART_GetFlagStatus(USART1, USART_FLAG_TXE));
-      USART_SendData(USART1, 0x5F);
-    }
-    USART_ClearITPendingBit(USART1, USART_IT_RXNE);
-  }
+  while(1);
 }
 /**
   * @}

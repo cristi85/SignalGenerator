@@ -10,51 +10,33 @@
 #include "hd44780.h"
 #include "string.h"
 
-#define VREFINT_CAL   (u32)0x1FFFF7BA
-
-#define UART_CMD_1  (u8)0x01
-#define UART_CMD_2  (u8)0x10
-#define UART_CMD_3  (u8)0x02
-
-typedef enum 
-{
-  Screen_ConstCurrent  = 0,
-  Screen_ConstPower    = 1,
-  Screen_ConstResistor = 2
-}Screen_t;
-
-/* Calibration Data */
 #define STM_Clk_Src_HSI  (u8)0
 #define STM_Clk_Src_HSE  (u8)1
 extern u8 STM_Clk_Src;
-/* Private typedef -----------------------------------------------------------*/
-/* Private define ------------------------------------------------------------*/
-/* Private macro -------------------------------------------------------------*/
-/* Private variables ---------------------------------------------------------*/
 
-const u16* ptr_VREFINT_CAL = (u16*)VREFINT_CAL;
+/* Vref INT CAL */
+const u16* ptr_VREFINT_CAL = (u16*)0x1FFFF7BA;
 u16 VrefINT_CAL; 
 
-Screen_t Current_Screen = Screen_ConstCurrent;
-u16 ADC_Conv_Tab_Avg[ADC_Scan_Channels];
-/* Private function prototypes -----------------------------------------------*/
-void TASK_RFCommand(void);
-void TASK_UARTCommands(void);
-/* Private functions ---------------------------------------------------------*/
+/* LCD MACROS and variables */
 #define LCD_CLEAR_ROW     "                "
 #define LCD_CLEAR_HALFROW "        "
 #define LCD_CLEAR_DUTY    "       "
-
 static char lcd_row1[18] = "                \n";
 static char lcd_row2[17] = LCD_CLEAR_ROW;
 
-static u32 UmV, ImA;
-static volatile u16 DACdata = 0;
-static u32 Pot = 0, Pot_old = 0;
+#define POWER_LIMIT   (u32)30000  /* mili Watts */
+#define CURRENT_LIMIT (u32)5000   /* mili Amps */
+static u32 UmV, ImA, PowermW;
+static u16 DACdata = 0;
+static u16 Requested_Current = 0, Requested_Current_old = 0;
+bool FLAG_Power_limit = FALSE;
+bool FLAG_Current_limit = FALSE;
 
-bool FLAG_RdCurrentSenOffset = TRUE;
+/* LEM current sensor offset variables */
 u32 CurrentSenOffset = 0, CurrentSenOffset_acc = 0;
 u8 cnt_RdCurrentSenOffset = 0;
+bool FLAG_RdCurrentSenOffset = TRUE;
 
 int main(void)
 {
@@ -72,6 +54,44 @@ int main(void)
   while (1)
   {
     /* ============== CYCLIC ENTRIES ================= */
+    if(FLAG_10ms)
+    {
+      /* Power and current limit check */
+      FLAG_10ms = FALSE;
+      if(FLAG_ADC_NewData)
+      {
+        FLAG_ADC_NewData = FALSE;
+        ImA = ADC_CURRENT;
+        if(ImA < CurrentSenOffset) { 
+          ImA = 0;
+        }
+        else {
+          ImA -= CurrentSenOffset;
+        }
+        /* LEM HLSR 40-P/SP33 (40A) -> 11.5mV/A ; ADC LSB (12bit) -> 70.058mA */
+        if(ImA != 0) {
+          ImA *= 70058;
+          ImA /= 1000;
+        }
+        UmV = ADC_VOLTAGE;
+        /* R1 = 4k7, R2 = 47k */
+        /* UmV: 0 ... 4095    */
+        /* UmV: 0 ... 36.3V */
+        if(UmV != 0) {
+          UmV *= 88645;
+          UmV /= 10000;
+        }
+        PowermW = ImA * UmV;
+        PowermW /= 1000;
+        if(PowermW > POWER_LIMIT) {
+          FLAG_Power_limit = TRUE;
+        }
+        else {
+          DACdata = CurrentSenOffset + Requested_Current;
+          DAC_SetChannel1Data(DAC_Align_12b_R, DACdata);
+        }
+      }
+    }
     if(FLAG_1000ms)
     {
       FLAG_1000ms = FALSE;
@@ -84,15 +104,13 @@ int main(void)
     
     if(FLAG_250ms)
     {
-      /* PA3, Vref, PA8, PA5 */
-      /* Vref, Pot, I,   U */
       char strtmp[11];
       FLAG_250ms = FALSE;
       if(FLAG_RdCurrentSenOffset)
       {
         if(FLAG_ADC_NewData)
         {
-          CurrentSenOffset_acc += ADC_Conv_Tab_Avg[2];
+          CurrentSenOffset_acc += ADC_CURRENT;
           FLAG_ADC_NewData = FALSE;
           cnt_RdCurrentSenOffset++;
           if(cnt_RdCurrentSenOffset >= 16)
@@ -103,123 +121,49 @@ int main(void)
             FLAG_RdCurrentSenOffset = FALSE;
           }
         }
-        
       }
       else
       {
-        if(FLAG_ADC_NewData)
-        {
-          ImA = ADC_Conv_Tab_Avg[2];
-          if(ImA < CurrentSenOffset) { 
-            ImA = 0;
-          }
-          else {
-            ImA -= CurrentSenOffset;
-          }
-          /* Ima: 0 ... 571    */
-          /* ImA: 0 ... 40000mA */
-          if(ImA != 0) {
-            ImA *= 70053;
-            ImA /= 1000;
-          }
-          UmV = ADC_Conv_Tab_Avg[3];
-          /* R1 = 4k7, R2 = 47k */
-          /* UmV: 0 ... 4095    */
-          /* UmV: 0 ... 36.3V */
-          if(UmV != 0) {
-            UmV *= 8865;
-            UmV /= 1000;
-          }
-          Pot = (ADC_Conv_Tab_Avg[1] * 100) / 4096;
-          if(Pot_old > 0 && Pot == 0) {
-            LCD_Clear();
-            LCD_Home();
-            LCD_WriteString("Calibrating...");
-            FLAG_RdCurrentSenOffset = TRUE;
-          }
-          Pot_old = Pot;
-          DACdata = CurrentSenOffset + (u16)Pot;
-          DAC_SetChannel1Data(DAC_Align_12b_R, DACdata);
-          
-          string_copy_noterm(lcd_row1, LCD_CLEAR_ROW);
-          string_append_spaceterm(lcd_row1, "I=");
-          string_append_spaceterm(lcd_row1, string_U32ToStr(ImA, strtmp));
-          string_append_spaceterm(lcd_row1, "mA");
-          string_append_spaceterm(&lcd_row1[8], "U=");
-          string_append_spaceterm(&lcd_row1[8], string_U32ToStr(UmV, strtmp));
-          string_append_spaceterm(&lcd_row1[8], "mV");
-          
-          string_copy_noterm(lcd_row2, LCD_CLEAR_ROW);
-          string_append_spaceterm(lcd_row2, "Pot=");
-          string_append_spaceterm(lcd_row2, string_U32ToStr(Pot, strtmp));
-          string_append_spaceterm(lcd_row2, "%");
-          string_append_spaceterm(&lcd_row2[8], "Cal=");
-          string_append_spaceterm(&lcd_row2[8], string_U32ToStr(CurrentSenOffset, strtmp));
-          
-          LCD_Home();
-          LCD_WriteString(lcd_row1);
-          LCD_WriteString(lcd_row2);
-          
-          FLAG_ADC_NewData = FALSE;
-        }
+        string_copy_noterm(lcd_row1, LCD_CLEAR_ROW);
+        string_append_spaceterm(lcd_row1, "I=");
+        string_append_spaceterm(lcd_row1, string_U32ToStr(ImA, strtmp));
+        string_append_spaceterm(lcd_row1, "mA");
+        string_append_spaceterm(&lcd_row1[8], "U=");
+        string_append_spaceterm(&lcd_row1[8], string_U32ToStr(UmV, strtmp));
+        string_append_spaceterm(&lcd_row1[8], "mV");
+        
+        string_copy_noterm(lcd_row2, LCD_CLEAR_ROW);
+        string_append_spaceterm(lcd_row2, "Pot=");
+        string_append_spaceterm(lcd_row2, string_U32ToStr(Requested_Current, strtmp));
+        string_append_spaceterm(lcd_row2, "%");
+        string_append_spaceterm(&lcd_row2[8], "Cal=");
+        string_append_spaceterm(&lcd_row2[8], string_U32ToStr(CurrentSenOffset, strtmp));
+        
+        LCD_Home();
+        LCD_WriteString(lcd_row1);
+        LCD_WriteString(lcd_row2);
       }
     }
     
-    /* ============== PRESS BTN FREQ INC ================= */
-    if(BTN_MODE_DEB_STATE == BTN_PRESSED && BTN_MODE_DELAY_FLAG)
-    {
-      BTN_MODE_DELAY_FLAG = FALSE;
-    } 
-    
-    /* ============== PRESS BTN FREQ DEC ================= */
-    if(BTN_DEC_DEB_STATE == BTN_PRESSED && BTN_DEC_DELAY_FLAG)
-    {
-      BTN_DEC_DELAY_FLAG = FALSE; 
-    }
-    
-    /* ============== PRESS BTN FREQ DUTY ================= */
+    /* ============== PRESS BTN INC ================= */
     if(BTN_INC_DEB_STATE == BTN_PRESSED && BTN_INC_DELAY_FLAG)
     {
       BTN_INC_DELAY_FLAG = FALSE;
+      if(Requested_Current < U16_MAX) Requested_Current++;
     }
     
-    // ============= UART COMMAND RECEIVED ==============
-    if(FLAG_UART_cmd_rcv)
+    /* ============== PRESS BTN DEC ================= */
+    if(BTN_DEC_DEB_STATE == BTN_PRESSED && BTN_DEC_DELAY_FLAG)
     {
-      switch(UART_CMD.CMD)
-      {
-        case UART_CMD_1:
-        {
-          //acknowledge CMD1
-          while(!USART_GetFlagStatus(USART1, USART_FLAG_TXE));
-          USART_SendData(USART1, 0x50);
-          break;
-        }
-        case UART_CMD_2:
-        {
-          //acknowledge CMD2
-          while(!USART_GetFlagStatus(USART1, USART_FLAG_TXE));
-          USART_SendData(USART1, 0x60);
-          break;
-        }
-        case UART_CMD_3:
-        {
-          //acknowledge CMD3
-          while(!USART_GetFlagStatus(USART1, USART_FLAG_TXE));
-          USART_SendData(USART1, 0x70);
-          break;
-        }
-        default:
-        {
-          //acknowledge command not recognized
-          while(!USART_GetFlagStatus(USART1, USART_FLAG_TXE));
-            USART_SendData(USART1, 0x8F);
-          break;
-        }
-      }
-      FLAG_UART_cmd_rcv = FALSE;
+      BTN_DEC_DELAY_FLAG = FALSE;
+      if(Requested_Current > 0) Requested_Current--;
     }
-    // ============= END UART COMMAND RECEIVED ==============
+    
+    /* ============== PRESS BTN MODE ================= */
+    if(BTN_MODE_DEB_STATE == BTN_PRESSED && BTN_MODE_DELAY_FLAG)
+    {
+      BTN_MODE_DELAY_FLAG = FALSE;
+    }
   }
 }
 

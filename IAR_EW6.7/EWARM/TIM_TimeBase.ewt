@@ -1212,6 +1212,9 @@
   <group>
     <name>User</name>
     <file>
+      <name>$PROJ_DIR$\..\board.h</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\config.c</name>
     </file>
     <file>

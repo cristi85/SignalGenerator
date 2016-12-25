@@ -48,26 +48,24 @@
 
 //---------Analog Input Pins----
 // POTENTIOMETER - analog INPUT
-#define POTENTIOMETER_PORT  GPIOA
-#define POTENTIOMETER_PIN   GPIO_Pin_3
-// CURRENT - analog INPUT
-#define CURRENT_PORT  GPIOA
-#define CURRENT_PIN    GPIO_Pin_5
-// VOLTAGE - analog INPUT
 #define VOLTAGE_PORT  GPIOA
-#define VOLTAGE_PIN   GPIO_Pin_8
+#define VOLTAGE_PIN   GPIO_Pin_3
+// CURRENT - analog INPUT
+#define CURRENT_PORT        GPIOA
+#define CURRENT_PIN         GPIO_Pin_5
 
+// ------ PWM out pin ----------
+#define PWM_OUT_PORT  GPIOA
+#define PWM_OUT_PIN   GPIO_Pin_8
 
 //---------Button Input Pins-------------
 // BTN1, BTN2, BTN3, BTN4 - digital INPUT
-#define BTN_PORT           GPIOB
-#define BTN_FREQINC_PIN    GPIO_Pin_15
-#define BTN_FREQDEC_PIN    GPIO_Pin_14
-#define BTN_FREQDUTY_PIN   GPIO_Pin_13
-#define BTN_CHGWAVE_PIN    GPIO_Pin_12
-#define BTN_FREQINC_STATE  ((u16)(BTN_PORT->IDR & BTN_FREQINC_PIN)  != (u16)0 ? (u8)1 : (u8)0)
-#define BTN_FREQDEC_STATE  ((u16)(BTN_PORT->IDR & BTN_FREQDEC_PIN)  != (u16)0 ? (u8)1 : (u8)0)
-#define BTN_FREQDUTY_STATE ((u16)(BTN_PORT->IDR & BTN_FREQDUTY_PIN) != (u16)0 ? (u8)1 : (u8)0)
-#define BTN_CHGWAVE_STATE  ((u16)(BTN_PORT->IDR & BTN_CHGWAVE_PIN)  != (u16)0 ? (u8)1 : (u8)0)
+#define BTN_PORT       GPIOB
+#define BTN_INC_PIN    GPIO_Pin_15
+#define BTN_DEC_PIN    GPIO_Pin_14
+#define BTN_MODE_PIN   GPIO_Pin_13
+#define BTN_FREQINC_STATE  ((u16)(BTN_PORT->IDR & BTN_INC_PIN)  != (u16)0 ? (u8)1 : (u8)0)
+#define BTN_FREQDEC_STATE  ((u16)(BTN_PORT->IDR & BTN_DEC_PIN)  != (u16)0 ? (u8)1 : (u8)0)
+#define BTN_FREQDUTY_STATE ((u16)(BTN_PORT->IDR & BTN_MODE_PIN) != (u16)0 ? (u8)1 : (u8)0)
 
 #endif
