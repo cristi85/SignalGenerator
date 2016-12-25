@@ -3,7 +3,7 @@
 
 #include "types.h"
 
-#define ADC_Scan_Channels  (u8)2
+#define ADC_Scan_Channels  (u8)4
 
 extern void Config();
 

@@ -34,9 +34,9 @@
 #include "config.h"
 
 //ADC measurements
-extern volatile u16 ADC_Conv_Tab_Avg[ADC_Scan_Channels];  /* 0 - PA5, 1 - Vref */
-u16 ADC_Conv_Tab_Avg_Acc[ADC_Scan_Channels];
-volatile u16 ADC_Conv_Tab[ADC_Scan_Channels];             /* 0 - PA5, 1 - Vref */
+extern volatile u16 ADC_Conv_Tab_Avg[ADC_Scan_Channels];
+u32 ADC_Conv_Tab_Avg_Acc[ADC_Scan_Channels];
+volatile u16 ADC_Conv_Tab[ADC_Scan_Channels];
 u8 adc_samp_avg_cnt = 0;
 extern u16 VrefINT_CAL;
 _Bool FLAG_ADC_NewData = FALSE;
@@ -121,7 +121,6 @@ extern u16 Timeout_toutcnt1;
 extern u16 Timeout_toutcnt2;
 extern u16 Timeout_tout1;
 extern u16 Timeout_tout2;
-extern const volatile struct CalibData CAL;
 /*====================*/
 
 /******************************************************************************/
@@ -140,7 +139,8 @@ void DMA1_Channel1_IRQHandler()
 {
   u8 i;
   /* DMA1 Channel1 Transfer Complete interrupt handler - DMA has transferred ADC data to ADC_Conv_Tab */
-  /* 0 - PA5, 1 - Vref */
+  /* Vref, PA8, PA5 */
+  /* Vref, Pot, I, U */
   if(!FLAG_ADC_NewData)
   {
     for(i = 0; i < ADC_Scan_Channels; i++)
@@ -148,12 +148,12 @@ void DMA1_Channel1_IRQHandler()
       ADC_Conv_Tab_Avg_Acc[i] += ADC_Conv_Tab[i];
     }
     adc_samp_avg_cnt++;
-    if(adc_samp_avg_cnt == CAL.ADC_Samp_Avg)
+    if(adc_samp_avg_cnt >= 32)
     {
       adc_samp_avg_cnt = 0;
       for(i = 0; i < ADC_Scan_Channels; i++)
       { 
-        ADC_Conv_Tab_Avg[i] = ADC_Conv_Tab_Avg_Acc[i] / CAL.ADC_Samp_Avg;
+        ADC_Conv_Tab_Avg[i] = ADC_Conv_Tab_Avg_Acc[i] / 32;
         ADC_Conv_Tab_Avg_Acc[i] = 0;
       }
       //ADC_Conv_Tab_Avg[0] = (u16)((ADC_Conv_Tab_Avg[0] * VrefINT_CAL) / ADC_Conv_Tab_Avg[1]);   //Voltage correction based on Vref

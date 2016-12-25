@@ -26,7 +26,7 @@ void Config()
   
   Config_GPIO();
   Config_UART1();
-  Config_TIM1();     /* Configure TIM1_CH1 as PWM output on PA8 (PWM1 Output) */
+  //Config_TIM1();     /* Configure TIM1_CH1 as PWM output on PA8 (PWM1 Output) */
   //Config_TIM2();     /* Configure TIM2_CH4 as PWM output on PA3 (PWM2 Output) */
   Config_TIM3();     /* Periodic 2ms interrupt */
   //Config_TIM6();     /* Periodic DAC triggering */
@@ -45,28 +45,36 @@ void Config_GPIO()
   RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOB, ENABLE);
   
   /* GPIOA */
-  /* PWM2 - digital OUTPUT */
-  GPIO_InitStructure.GPIO_Pin = PMW2_PIN;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-  GPIO_Init(PWM2_PORT, &GPIO_InitStructure);
-  /* Connect TIM2 to PA3 */
-  GPIO_PinAFConfig(PWM2_PORT, GPIO_PinSource3, GPIO_AF_2);
   /* DAC OUT - analog OUTPUT */
   GPIO_InitStructure.GPIO_Pin   = DAC_PIN;
-  GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AF;
+  GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AN;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
   GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL ;
   GPIO_Init(DAC_PORT, &GPIO_InitStructure);
-  /* SIGNAL OUT - analog INPUT */
-  GPIO_InitStructure.GPIO_Pin   = SIGNAL_PIN;
+  /* Analog Inputs */
+  /* POTENTIOMETER - analog INPUT */
+  GPIO_InitStructure.GPIO_Pin   = POTENTIOMETER_PIN;
   GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AN;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
   GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL;
-  GPIO_Init(SIGNAL_PORT, &GPIO_InitStructure);
+  GPIO_Init(POTENTIOMETER_PORT, &GPIO_InitStructure);
+  /* CURRENT - analog INPUT */
+  GPIO_InitStructure.GPIO_Pin   = CURRENT_PIN;
+  GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AN;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+  GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL;
+  GPIO_Init(CURRENT_PORT, &GPIO_InitStructure);
+  /* VOLTAGE - analog INPUT */
+  GPIO_InitStructure.GPIO_Pin   = VOLTAGE_PIN;
+  GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AN;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+  GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL;
+  GPIO_Init(VOLTAGE_PORT, &GPIO_InitStructure);
+  
   /* LCD RS - digital OUTPUT */
   GPIO_InitStructure.GPIO_Pin   = LCD_RS_PIN;
   GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_OUT;
@@ -81,13 +89,6 @@ void Config_GPIO()
   GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
   GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
   GPIO_Init(LCD_D7_PORT, &GPIO_InitStructure);
-  /* PWM1 - digital OUTPUT */
-  GPIO_InitStructure.GPIO_Pin = PMW1_PIN;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-  GPIO_Init(PWM1_PORT, &GPIO_InitStructure);
-  GPIO_PinAFConfig(PWM1_PORT, GPIO_PinSource8, GPIO_AF_2);  /* Connect TIM1 to PA8 */
   /* USART - digital I/O */
   GPIO_InitStructure.GPIO_Pin =  USART_RX_PIN | USART_TX_PIN;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
@@ -306,16 +307,15 @@ void Config_UART1()
 
 void Config_DAC()
 {
-  GPIO_InitTypeDef GPIO_InitStructure;
   DAC_InitTypeDef DAC_InitStructure;
 
   //PA4 DAC Output
   RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOB, ENABLE);
   RCC_APB1PeriphClockCmd(RCC_APB1Periph_DAC, ENABLE);
   
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;       //DAC Output
+  /*GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;       //DAC Output
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AN;
-  GPIO_Init(GPIOA, &GPIO_InitStructure);
+  GPIO_Init(GPIOA, &GPIO_InitStructure);*/
   
   DAC_InitStructure.DAC_OutputBuffer = DAC_OutputBuffer_Enable;
   DAC_InitStructure.DAC_Trigger = DAC_Trigger_None;
@@ -393,14 +393,14 @@ void Config_ADC1_DMA()
   RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
   
   /* DMA1 clock enable */
-  RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1 , ENABLE);
+  RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
   
   /* DMA1 Channel1 Config */
   DMA_DeInit(DMA1_Channel1);
   DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)(&(ADC1->DR));
   DMA_InitStructure.DMA_MemoryBaseAddr = (u32)(&ADC_Conv_Tab);
   DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC;
-  DMA_InitStructure.DMA_BufferSize = 2;
+  DMA_InitStructure.DMA_BufferSize = ADC_Scan_Channels;
   DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
   DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
   DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord;
@@ -436,14 +436,15 @@ void Config_ADC1_DMA()
   ADC_InitStructure.ADC_ContinuousConvMode = ENABLE; 
   ADC_InitStructure.ADC_ExternalTrigConvEdge = ADC_ExternalTrigConvEdge_None;
   ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
-  ADC_InitStructure.ADC_ScanDirection = ADC_ScanDirection_Backward;
+  ADC_InitStructure.ADC_ScanDirection = ADC_ScanDirection_Upward;
   ADC_Init(ADC1, &ADC_InitStructure); 
   
   /* Convert the ADC1 Vref  with 55.5 Cycles as sampling time */ 
+  ADC_ChannelConfig(ADC1, ADC_Channel_3, ADC_SampleTime_239_5Cycles);
+  ADC_ChannelConfig(ADC1, ADC_Channel_5, ADC_SampleTime_239_5Cycles);
+  ADC_ChannelConfig(ADC1, ADC_Channel_8, ADC_SampleTime_239_5Cycles);
   ADC_ChannelConfig(ADC1, ADC_Channel_Vrefint, ADC_SampleTime_55_5Cycles); 
   ADC_VrefintCmd(ENABLE);
-  /* Convert the ADC1 ADC_Channel_5  with 239.5 Cycles as sampling time */ 
-  ADC_ChannelConfig(ADC1, ADC_Channel_5, ADC_SampleTime_239_5Cycles);
   
   /* ADC Calibration */
   ADC_GetCalibrationFactor(ADC1);

@@ -41,23 +41,22 @@
 #define USART_TX_PIN  GPIO_Pin_9
 #define USART_RX_PIN  GPIO_Pin_10
 
-//---------PWM Output Pins-----
-// PWM1 - digital OUTPUT
-#define PWM1_PORT   GPIOA
-#define PMW1_PIN    GPIO_Pin_8
-// PWM2 - digital OUTPUT
-#define PWM2_PORT   GPIOA
-#define PMW2_PIN    GPIO_Pin_3
-
 //---------DAC Output Pin-----
 // DAC OUT - analog OUTPUT
 #define DAC_PORT  GPIOA
 #define DAC_PIN   GPIO_Pin_4
 
 //---------Analog Input Pins----
-// SIGNAL OUT - analog INPUT
-#define SIGNAL_PORT   GPIOA
-#define SIGNAL_PIN    GPIO_Pin_5
+// POTENTIOMETER - analog INPUT
+#define POTENTIOMETER_PORT  GPIOA
+#define POTENTIOMETER_PIN   GPIO_Pin_3
+// CURRENT - analog INPUT
+#define CURRENT_PORT  GPIOA
+#define CURRENT_PIN    GPIO_Pin_5
+// VOLTAGE - analog INPUT
+#define VOLTAGE_PORT  GPIOA
+#define VOLTAGE_PIN   GPIO_Pin_8
+
 
 //---------Button Input Pins-------------
 // BTN1, BTN2, BTN3, BTN4 - digital INPUT
