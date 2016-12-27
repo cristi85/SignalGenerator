@@ -60,6 +60,8 @@ extern u16 BTN_MODE_press_timer;
 extern u16 BTN_DEC_press_timer;
 extern u16 BTN_INC_press_timer;
 
+extern bool LCD_UPDATE_LIMIT_FLAG;
+
 extern _Bool FLAG_10ms;
 extern _Bool FLAG_250ms;
 extern _Bool FLAG_500ms;
@@ -70,8 +72,8 @@ extern void IT_Init(void);
 /* ADC measurements */
 extern volatile u16 ADC_Conv_Tab_Avg[ADC_Scan_Channels];
 #define ADC_VREF     ADC_Conv_Tab_Avg[0]
-#define ADC_CURRENT  ADC_Conv_Tab_Avg[1]
-#define ADC_VOLTAGE  ADC_Conv_Tab_Avg[2]
+#define ADC_VOLTAGE  ADC_Conv_Tab_Avg[1]
+#define ADC_CURRENT  ADC_Conv_Tab_Avg[2]
 
 #ifdef __cplusplus
 }

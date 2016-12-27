@@ -61,9 +61,9 @@
 //---------Button Input Pins-------------
 // BTN1, BTN2, BTN3, BTN4 - digital INPUT
 #define BTN_PORT       GPIOB
-#define BTN_INC_PIN    GPIO_Pin_15
-#define BTN_DEC_PIN    GPIO_Pin_14
-#define BTN_MODE_PIN   GPIO_Pin_13
+#define BTN_INC_PIN    GPIO_Pin_13
+#define BTN_DEC_PIN    GPIO_Pin_15
+#define BTN_MODE_PIN   GPIO_Pin_14
 #define BTN_FREQINC_STATE  ((u16)(BTN_PORT->IDR & BTN_INC_PIN)  != (u16)0 ? (u8)1 : (u8)0)
 #define BTN_FREQDEC_STATE  ((u16)(BTN_PORT->IDR & BTN_DEC_PIN)  != (u16)0 ? (u8)1 : (u8)0)
 #define BTN_FREQDUTY_STATE ((u16)(BTN_PORT->IDR & BTN_MODE_PIN) != (u16)0 ? (u8)1 : (u8)0)

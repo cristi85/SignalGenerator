@@ -425,7 +425,6 @@ void Config_ADC1_DMA()
   /* Convert the ADC1 Vref  with 55.5 Cycles as sampling time */ 
   ADC_ChannelConfig(ADC1, ADC_Channel_3, ADC_SampleTime_239_5Cycles);
   ADC_ChannelConfig(ADC1, ADC_Channel_5, ADC_SampleTime_239_5Cycles);
-  ADC_ChannelConfig(ADC1, ADC_Channel_8, ADC_SampleTime_239_5Cycles);
   ADC_ChannelConfig(ADC1, ADC_Channel_Vrefint, ADC_SampleTime_55_5Cycles); 
   ADC_VrefintCmd(ENABLE);
   

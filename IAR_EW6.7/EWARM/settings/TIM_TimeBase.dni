@@ -1,5 +1,5 @@
 [DebugChecksum]
-Checksum=-982860133
+Checksum=-369292032
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -75,8 +75,6 @@ CStepIntDis=_ 0
 LeaveTargetRunning=_ 0
 stlinkserialNo=27330587
 stlinkfoundProbes=
-[struct_types]
-Fmt0=struct CalibData-ADC_Samp_Avg	3	0
 [array_types]
 Fmt0=u16[100]	3	0
 Fmt1=u32[10]	4	0

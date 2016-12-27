@@ -93,6 +93,12 @@ u16 btn_mode_delay_cnt = 0;
 u16 BTN_MODE_press_timer = 0;
 /*========================================*/
 
+/* LCD Update limit */
+bool LCD_UPDATE_LIMIT_FLAG = FALSE;
+u16 lcd_update_limit_delay_cnt = 0;
+#define LCD_UPDATE_LIMIT_DELAY (u8)125  /* limit LCD update to maximum once overy 125*2ms (250ms) */
+
+
 /* Public variables */
 
 /* External variables */
@@ -361,6 +367,16 @@ void TIM3_IRQHandler(void)
       }
     }
     /* ======================================= */
+    /* LCD update limit */
+    if(!LCD_UPDATE_LIMIT_FLAG)
+    {
+      lcd_update_limit_delay_cnt++;
+      if(lcd_update_limit_delay_cnt >= LCD_UPDATE_LIMIT_DELAY)
+      {
+        lcd_update_limit_delay_cnt = 0;
+        LCD_UPDATE_LIMIT_FLAG = TRUE;
+      }
+    }
     
     TIM_ClearITPendingBit(TIM3, TIM_IT_Update);        // clear TIM1 CC2 interrupt flag
   }
