@@ -130,7 +130,7 @@ void DMA1_Channel1_IRQHandler() /* every 14.5us */
   /* Vref, U, I */
   if(!FLAG_ADC_NewData)
   {
-    /* 1.35us */
+    /* Duration: 1.35us every  FLAG_ADC_NewData = TRUE */
     for(i = 0; i < ADC_Scan_Channels; i++)
     {
       ADC_Conv_Tab_Avg_Acc[i] += ADC_Conv_Tab[i];
@@ -218,7 +218,7 @@ void SysTick_Handler(void)
   */
 void TIM3_IRQHandler(void)  
 {
-  if(TIM_GetITStatus(TIM3, TIM_IT_Update))  //2ms
+  if(TIM_GetITStatus(TIM3, TIM_IT_Update))  // Duration 5.5us every 2ms
   {
     /* ===== CKECK PERIODIC TASKS FLAGS ===== */
     if(cnt_flag_10ms < U8_MAX) cnt_flag_10ms++;
