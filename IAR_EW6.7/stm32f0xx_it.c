@@ -122,7 +122,7 @@ void IT_Init()
   }
   adc_samp_avg_cnt = 0;
 }
-void DMA1_Channel1_IRQHandler()
+void DMA1_Channel1_IRQHandler() /* every 14.5us */
 {
   u8 i;
   /* DMA1 Channel1 Transfer Complete interrupt handler - DMA has transferred ADC data to ADC_Conv_Tab */
@@ -130,6 +130,7 @@ void DMA1_Channel1_IRQHandler()
   /* Vref, U, I */
   if(!FLAG_ADC_NewData)
   {
+    /* 1.35us */
     for(i = 0; i < ADC_Scan_Channels; i++)
     {
       ADC_Conv_Tab_Avg_Acc[i] += ADC_Conv_Tab[i];
@@ -147,7 +148,7 @@ void DMA1_Channel1_IRQHandler()
       FLAG_ADC_NewData = TRUE;
     }
   }
-  DMA_ClearITPendingBit(DMA1_IT_TC1);
+  DMA1->IFCR = DMA1_IT_TC1;
 }
 void TIM2_IRQHandler(void)
 {
