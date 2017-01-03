@@ -3,6 +3,11 @@
 #include "delay.h"
 #include "HD44780.h"
 
+static u8 step_LCD_Home = 0;
+static u8 step_LCD_GoTo = 0;
+static u8 step_LCD_WriteString = 0;
+static u8 cnt_LCD_WriteString = 0;
+static char _lcd_string[18] = " ";
 /******************************************************************************
 *                          Basic display functions                            *
 ******************************************************************************/
@@ -13,7 +18,7 @@ void LCD_Clock()
   LCD_EN(0);
 }
 
-void LCD_Write(u8 c)
+void LCD_Write(u8 c) /* Duration 150us */
 {
   LCD_D7((u8)((c >> 7) & 0x01));
   LCD_D6((u8)((c >> 6) & 0x01));
@@ -119,16 +124,53 @@ void LCD_WriteByte(u8 num)
   else LCD_Write((num & 0x0F) + 55);
 }
 
-void LCD_WriteString(const char* s)
+u8 LCD_WriteString(const char* s)
 {
-  LCD_RS(1);  // Data send
-  while(*s)
+  switch(step_LCD_WriteString)
   {
-    if (*s != '\n') LCD_Write(*s);
-    else LCD_GoTo(0x40);
-
-    s++;
+  case 0:
+    {
+      u8 _cnt = 0;
+      LCD_RS(1);  // Data send
+      //copy string send by parameter to driver work string
+      while(s[_cnt] && _cnt <= 16) {
+        _lcd_string[_cnt] = s[_cnt];
+        _cnt++;
+      }
+      step_LCD_WriteString = 1;
+      break;
+    }
+  case 1:
+    {
+      if(_lcd_string[cnt_LCD_WriteString] == 0)
+      {
+        cnt_LCD_WriteString = 0;
+        step_LCD_WriteString = 0;
+        return 1;
+      }
+      else
+      {
+        if(_lcd_string[cnt_LCD_WriteString] != '\n') {
+          LCD_Write(_lcd_string[cnt_LCD_WriteString]);
+        }
+        else {
+          step_LCD_WriteString = 2;
+        }
+        cnt_LCD_WriteString++;
+      }
+      
+      break;
+    }
+  case 2:
+    {
+      if(LCD_GoTo(0x40)) {
+        step_LCD_WriteString = 1;
+      }
+      break;
+    }
+  default:break;
   }
+  return 0;
 }
 
 void LCD_Clear(void)
@@ -139,20 +181,62 @@ void LCD_Clear(void)
   delay_10us(200);
 }
 
-void LCD_Home(void)
+u8 LCD_Home(void)
 {
-  LCD_RS(0);    // Command send
-  LCD_Write(0x02);
-  LCD_RS(1);
-  delay_10us(200);
+  switch(step_LCD_Home)
+  {
+  case 0:
+    {
+      LCD_RS(0);    // Command send
+      LCD_Write(0x02);
+      LCD_RS(1);
+      step_LCD_Home = 1;
+      break;
+    }
+  case 1:
+    {
+      delay_10us(100);
+      step_LCD_Home = 2;
+      break;
+    }
+  case 2:
+    {
+      delay_10us(100);
+      step_LCD_Home = 0;
+      return 1;
+    }
+  default: break;
+  }
+  return 0;
 }
 
-void LCD_GoTo(u8 P)
+u8 LCD_GoTo(u8 P)
 {
-  LCD_RS(0);    // Command send
-  LCD_Write((u8)(0x80+P));
-  LCD_RS(1);
-  delay_10us(200);
+  switch(step_LCD_GoTo)
+  {
+  case 0:
+    {
+      LCD_RS(0);    // Command send
+      LCD_Write((u8)(0x80+P));
+      LCD_RS(1);
+      step_LCD_GoTo = 1;
+      break;
+    }
+  case 1:
+    {
+      delay_10us(100);
+      step_LCD_GoTo = 2;
+      break;
+    }
+  case 2:
+    {
+      delay_10us(100);
+      step_LCD_GoTo = 0;
+      return 1;
+    }
+  default: break;
+  }
+  return 0;
 }
 
 void LCD_Move_Cursor(u8 row, u8 col)

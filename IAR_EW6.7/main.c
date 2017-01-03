@@ -21,6 +21,8 @@ typedef enum
 }LCD_Update_t;
 LCD_Update_t LCD_Update = LCD_Update_NO_UPDATE;
 
+static u8 step_Background_Task = 0;
+
 void Convert2String_Current(u32 ImA);
 void Convert2String_Voltage(u32 UmV);
 void Convert2String_Ireq(u16 Requested_Current);
@@ -70,8 +72,8 @@ int main(void)
   
   LCD_Initialize();
   LCD_Clear();
-  LCD_Home();
-  LCD_WriteString("Calibrating...");
+  while(!LCD_Home());
+  while(!LCD_WriteString("Calibrating..."));
   
   while (1)
   {
@@ -80,6 +82,7 @@ int main(void)
     {
       /* Power and current limit check */
       FLAG_10ms = FALSE;
+      DEBUGPIN_TOGGLE;
       if(FLAG_RdCurrentSenOffset)
       {
         if(FLAG_ADC_NewData)
@@ -101,6 +104,7 @@ int main(void)
       {
         if(FLAG_ADC_NewData)
         {
+          //DEBUGPIN_HIGH;
           /* Read ADC conversion results */
           ImA = ADC_CURRENT;
           UmV = ADC_VOLTAGE;
@@ -144,24 +148,10 @@ int main(void)
             DACdata = CurrentSenOffset + Requested_Current;
             DAC_SetChannel1Data(DAC_Align_12b_R, DACdata);
           }
+          //DEBUGPIN_LOW;
         }
       }
     }
-    /* ============== LCD UPDATE CHECK ================= */
-    if(LCD_Update && !FLAG_RdCurrentSenOffset && LCD_UPDATE_LIMIT_FLAG)
-    {
-      LCD_Home();
-      if(LCD_Update & LCD_Update_Current)  Convert2String_Current(ImA);
-      if(LCD_Update & LCD_Update_Voltage)  Convert2String_Voltage(UmV);
-      if(LCD_Update & LCD_Update_Ireq)     Convert2String_Ireq(Requested_Current);
-      if(LCD_Update & LCD_Update_Cal)      Convert2String_Cal(CurrentSenOffset);
-      if(LCD_Update & LCD_Update_Power)    Convert2String_Power(PowermW);
-      LCD_WriteString(lcd_row1);
-      LCD_WriteString(lcd_row2);
-      LCD_Update = LCD_Update_NO_UPDATE;
-      LCD_UPDATE_LIMIT_FLAG = FALSE;
-    }
-    /* ============== END LCD UPDATE CHECK ================= */
     
     /* ============== PRESS BTN INC ================= */
     if(BTN_INC_DEB_STATE == BTN_PRESSED && BTN_INC_DELAY_FLAG)
@@ -200,6 +190,55 @@ int main(void)
     {
       FLAG_250ms = FALSE;
     }
+
+    /* BACKGROUND TASK - SHOULD NOT TAKE MORE THAN 1MS IN ONE PASS!!! */
+    /* ============== LCD UPDATE CHECK ================= */
+    if(LCD_Update && !FLAG_RdCurrentSenOffset && LCD_UPDATE_LIMIT_FLAG)
+    {
+      switch(step_Background_Task)
+      {
+      case 0:
+        {
+          /* Max Duration: 1ms, 3 steps */
+          if(LCD_Home())
+          {
+            step_Background_Task++;
+          }
+          break;
+        }
+      case 1:
+        {
+          /* Max Duration: 26.5us, 1 step */
+          if(LCD_Update & LCD_Update_Current)  Convert2String_Current(ImA);
+          if(LCD_Update & LCD_Update_Voltage)  Convert2String_Voltage(UmV);
+          if(LCD_Update & LCD_Update_Ireq)     Convert2String_Ireq(Requested_Current);
+          if(LCD_Update & LCD_Update_Cal)      Convert2String_Cal(CurrentSenOffset);
+          if(LCD_Update & LCD_Update_Power)    Convert2String_Power(PowermW);
+          
+          step_Background_Task++;
+          break;
+        }
+      case 2:
+        {
+          if(LCD_WriteString(lcd_row1)) {
+            step_Background_Task++;
+          }
+          break;
+        }
+      case 3:
+        {
+          if(LCD_WriteString(lcd_row2)) {
+            LCD_Update = LCD_Update_NO_UPDATE;
+            LCD_UPDATE_LIMIT_FLAG = FALSE;
+            
+            step_Background_Task = 0; 
+          }
+          break;
+        }
+      default: break;
+      }
+    }
+    /* ============== END LCD UPDATE CHECK ================= */
   }
 }
 

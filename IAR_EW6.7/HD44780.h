@@ -195,7 +195,7 @@ void LCD_WriteByte(u8);
 // second line, not on the first line. I could not implement something for the
 // first line so you'll have to separately use the function LCD_Home().
 // ----------------------------------------------------------------------------
-void LCD_WriteString(const char*);
+u8 LCD_WriteString(const char*);
 
 // LCD_Home()
 // Parameters: NONE
@@ -204,7 +204,7 @@ void LCD_WriteString(const char*);
 // As simple as the name: it returns the cursor on the display to the first
 // character on line 1 without modifying any existing text.
 // ----------------------------------------------------------------------------
-void LCD_Home(void);
+u8 LCD_Home(void);
 
 // LCD_GoTo()
 // Parameters: 1
@@ -222,7 +222,7 @@ void LCD_Home(void);
 // Not really a big deal for your headaches...
 // ----------------------------------------------------------------------------
 // Jumps to the specified position on the display
-void LCD_GoTo(u8);
+u8 LCD_GoTo(u8);
 
 // LCD_Home()
 // Parameters: NONE
