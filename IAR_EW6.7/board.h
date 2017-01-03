@@ -55,8 +55,8 @@
 #define CURRENT_PIN         GPIO_Pin_5
 
 // ------ PWM out pin ----------
-#define PWM_OUT_PORT  GPIOA
-#define PWM_OUT_PIN   GPIO_Pin_8
+//#define PWM_OUT_PORT  GPIOA
+//#define PWM_OUT_PIN   GPIO_Pin_8
 
 //---------Button Input Pins-------------
 // BTN1, BTN2, BTN3, BTN4 - digital INPUT
@@ -67,5 +67,12 @@
 #define BTN_FREQINC_STATE  ((u16)(BTN_PORT->IDR & BTN_INC_PIN)  != (u16)0 ? (u8)1 : (u8)0)
 #define BTN_FREQDEC_STATE  ((u16)(BTN_PORT->IDR & BTN_DEC_PIN)  != (u16)0 ? (u8)1 : (u8)0)
 #define BTN_FREQDUTY_STATE ((u16)(BTN_PORT->IDR & BTN_MODE_PIN) != (u16)0 ? (u8)1 : (u8)0)
+
+// Debug Pin
+#define DEBUGPIN_PORT   GPIOA
+#define DEBUGPIN_PIN    GPIO_Pin_8
+#define DEBUGPIN_LOW    (DEBUGPIN_PORT->ODR &= (~DEBUGPIN_PIN))
+#define DEBUGPIN_HIGH   (DEBUGPIN_PORT->ODR |= DEBUGPIN_PIN)
+#define DEBUGPIN_TOGGLE ((DEBUGPIN_PORT->ODR & DEBUGPIN_PIN) ? DEBUGPIN_LOW : DEBUGPIN_HIGH )
 
 #endif

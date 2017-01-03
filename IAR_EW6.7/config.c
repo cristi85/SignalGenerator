@@ -126,6 +126,14 @@ void Config_GPIO()
   GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
   GPIO_Init(USART_PORT, &GPIO_InitStructure);
   
+  /* DEBUG PIN - digital I/O */
+  GPIO_InitStructure.GPIO_Pin =  DEBUGPIN_PIN;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+  GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+  GPIO_Init(DEBUGPIN_PORT, &GPIO_InitStructure);
+  
   LCD_LIGHT_HIGH;
   LCD_RS(0);
   LCD_EN(0);
@@ -217,9 +225,9 @@ void Config_TIM3()
   NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
   NVIC_Init(&NVIC_InitStructure);
   
-  TIM_TimeBaseInitStruct.TIM_Prescaler = 48;                         // This parameter can be a number between 0x0000 and 0xFFFF
+  TIM_TimeBaseInitStruct.TIM_Prescaler = 47;                         // This parameter can be a number between 0x0000 and 0xFFFF
   TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;       // This parameter can be a value of @ref TIM_Counter_Mode
-  TIM_TimeBaseInitStruct.TIM_Period = 2000;                          // This parameter must be a number between 0x0000 and 0xFFFF
+  TIM_TimeBaseInitStruct.TIM_Period = 1999;                          // This parameter must be a number between 0x0000 and 0xFFFF
   TIM_TimeBaseInitStruct.TIM_ClockDivision = TIM_CKD_DIV1;           // This parameter can be a value of @ref TIM_Clock_Division_CKD
   TIM_TimeBaseInitStruct.TIM_RepetitionCounter = 0x00;               //This parameter is valid only for TIM1
   TIM_TimeBaseInit(TIM3, &TIM_TimeBaseInitStruct);
