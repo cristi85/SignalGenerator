@@ -259,13 +259,13 @@ void Config_TIM15()
   /* TIM15 clock enable */
   RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM15, ENABLE);
   
-  TIM_TimeBaseInitStruct.TIM_Prescaler = 48;                         // This parameter can be a number between 0x0000 and 0xFFFF
+  TIM_TimeBaseInitStruct.TIM_Prescaler = 47;                         // for division to 48 (1us resolution), prescaler has to be set to 48-1
   TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;       // This parameter can be a value of @ref TIM_Counter_Mode
-  TIM_TimeBaseInitStruct.TIM_Period = 10;                            // This parameter must be a number between 0x0000 and 0xFFFF
+  TIM_TimeBaseInitStruct.TIM_Period = 0xFFFF;                        // This parameter must be a number between 0x0000 and 0xFFFF
   TIM_TimeBaseInitStruct.TIM_ClockDivision = TIM_CKD_DIV1;           // This parameter can be a value of @ref TIM_Clock_Division_CKD
   TIM_TimeBaseInitStruct.TIM_RepetitionCounter = 0x00;               // This parameter is valid only for TIM1
   TIM_TimeBaseInit(TIM15, &TIM_TimeBaseInitStruct);
-  //TIM_Cmd(TIM15, ENABLE);
+  TIM_Cmd(TIM15, ENABLE);
 }
 
 void Config_UART1()
