@@ -53,6 +53,9 @@ _Bool FLAG_ADC_NewData = FALSE;
 #define CNTVAL_10MS  (u8)5
 _Bool FLAG_10ms = FALSE;
 u8 cnt_flag_10ms = 0;
+#define CNTVAL_100MS  (u8)50
+_Bool FLAG_100ms = FALSE;
+u8 cnt_flag_100ms = 0;
 #define CNTVAL_250MS  (u16)125
 _Bool FLAG_250ms = FALSE;
 u16 cnt_flag_250ms = 0;
@@ -109,6 +112,20 @@ extern u16 Timeout_toutcnt2;
 extern u16 Timeout_tout1;
 extern u16 Timeout_tout2;
 /*====================*/
+/* Runtime measurement */
+extern u32 start_int, end_int, total_int, cpuload_int, total_int_intask;
+extern bool flag_int_active;
+typedef enum
+{
+  RunningTask_NoTask = (u8)0x00,
+  RunningTask_10ms   = (u8)0x01,
+  RunningTask_100ms  = (u8)0x02,
+  RunningTask_250ms  = (u8)0x04,
+  RunningTask_500ms  = (u8)0x08,
+  RunningTask_1000ms = (u8)0x10,
+  RunningTask_Bkg    = (u8)0x20
+}RunningTask_t;
+extern RunningTask_t RunningTask;
 
 /******************************************************************************/
 /*            Cortex-M0 Processor Exceptions Handlers                         */
@@ -125,6 +142,7 @@ void IT_Init()
 void DMA1_Channel1_IRQHandler() /* every 14.5us */
 {
   u8 i;
+  start_int = TIM2->CNT;
   /* DMA1 Channel1 Transfer Complete interrupt handler - DMA has transferred ADC data to ADC_Conv_Tab */
   /* Vref, PA3, PA5 */
   /* Vref, U, I */
@@ -149,6 +167,11 @@ void DMA1_Channel1_IRQHandler() /* every 14.5us */
     }
   }
   DMA1->IFCR = DMA1_IT_TC1;
+  end_int = TIM2->CNT;
+  total_int += end_int - start_int;
+  if(RunningTask != RunningTask_NoTask) {
+    total_int_intask += end_int - start_int;
+  }
 }
 void TIM2_IRQHandler(void)
 {
@@ -218,6 +241,7 @@ void SysTick_Handler(void)
   */
 void TIM3_IRQHandler(void)  
 {
+  start_int = TIM2->CNT;
   if(TIM_GetITStatus(TIM3, TIM_IT_Update))  // Duration 5.5us every 2ms
   {
     /* ===== CKECK PERIODIC TASKS FLAGS ===== */
@@ -226,6 +250,12 @@ void TIM3_IRQHandler(void)
     {
       cnt_flag_10ms = 0;
       FLAG_10ms = TRUE;
+    }
+    if(cnt_flag_100ms < U8_MAX) cnt_flag_100ms++;
+    if(cnt_flag_100ms >= CNTVAL_100MS) 
+    {
+      cnt_flag_100ms = 0;
+      FLAG_100ms = TRUE;
     }
     if(cnt_flag_250ms < U16_MAX) cnt_flag_250ms++;
     if(cnt_flag_250ms >= CNTVAL_250MS) 
@@ -369,17 +399,19 @@ void TIM3_IRQHandler(void)
     }
     /* ======================================= */
     /* LCD update limit */
-    if(!LCD_UPDATE_LIMIT_FLAG)
+    if(lcd_update_limit_delay_cnt < U16_MAX) lcd_update_limit_delay_cnt++;
+    if(lcd_update_limit_delay_cnt >= LCD_UPDATE_LIMIT_DELAY)
     {
-      lcd_update_limit_delay_cnt++;
-      if(lcd_update_limit_delay_cnt >= LCD_UPDATE_LIMIT_DELAY)
-      {
-        lcd_update_limit_delay_cnt = 0;
-        LCD_UPDATE_LIMIT_FLAG = TRUE;
-      }
+      lcd_update_limit_delay_cnt = 0;
+      LCD_UPDATE_LIMIT_FLAG = TRUE;
     }
     
     TIM_ClearITPendingBit(TIM3, TIM_IT_Update);        // clear TIM1 CC2 interrupt flag
+  }
+  end_int = TIM2->CNT;
+  total_int += end_int - start_int;
+  if(RunningTask != RunningTask_NoTask) {
+    total_int_intask += end_int - start_int;
   }
 }
 

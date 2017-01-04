@@ -26,9 +26,9 @@ void Config()
   
   Config_GPIO();
   //Config_UART1();
-  //Config_TIM1();     /* Configure TIM1_CH1 as PWM output on PA8 (PWM1 Output) */
-  //Config_TIM2();     /* Configure TIM2_CH4 as PWM output on PA3 (PWM2 Output) */
-  Config_TIM3();     /* Periodic 2ms interrupt */
+  //Config_TIM1();    /* Configure TIM1_CH1 as PWM output on PA8 (PWM1 Output) */
+  Config_TIM2();      /* Configure TIM2 as a free running timer for Runtime measurment */
+  Config_TIM3();      /* Periodic 2ms interrupt */
   //Config_TIM6();     /* Periodic DAC triggering */
   //Config_TIM14();
   Config_TIM15();    /* for delay_10us */
@@ -181,34 +181,18 @@ void Config_TIM1()
 void Config_TIM2()
 {
   TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
-  TIM_OCInitTypeDef TIM_OCInitStruct;
   /* TIM2 clock enable */
   RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
   
   TIM_TimeBaseInitStruct.TIM_Prescaler = 47;                         // Prescaler=48 (47+1), This parameter can be a number between 0x0000 and 0xFFFF
   TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;       // This parameter can be a value of @ref TIM_Counter_Mode
-  TIM_TimeBaseInitStruct.TIM_Period = 1000;                          // This parameter must be a number between 0x0000 and 0xFFFF, fclk=1M, 1000000->T=1s
+  TIM_TimeBaseInitStruct.TIM_Period = 0xFFFFFFFF;                    // This parameter must be a number between 0x0000 and 0xFFFF, fclk=1M, 1000000->T=1s
   TIM_TimeBaseInitStruct.TIM_ClockDivision = TIM_CKD_DIV1;           // This parameter can be a value of @ref TIM_Clock_Division_CKD
   TIM_TimeBaseInitStruct.TIM_RepetitionCounter = 0;                  // This parameter is valid only for TIM1
   TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
   
-  TIM_OCInitStruct.TIM_OCMode = TIM_OCMode_PWM1;
-  TIM_OCInitStruct.TIM_OutputState = TIM_OutputState_Enable;
-  TIM_OCInitStruct.TIM_OutputNState = TIM_OutputNState_Disable;
-  TIM_OCInitStruct.TIM_Pulse = 500;                              // Duty cycle (compared to TIM_Period)
-  TIM_OCInitStruct.TIM_OCPolarity = TIM_OCPolarity_High;
-  TIM_OCInitStruct.TIM_OCNPolarity = TIM_OCNPolarity_High;
-  TIM_OCInitStruct.TIM_OCIdleState = TIM_OCIdleState_Reset;
-  TIM_OCInitStruct.TIM_OCNIdleState = TIM_OCNIdleState_Reset;
-  TIM_OC4Init(TIM2, &TIM_OCInitStruct);
-  
-  //TIM_OC4PreloadConfig(TIM2, TIM_OCPreload_Disable);
-  
   /* TIM2 enable counter */
   TIM_Cmd(TIM2, ENABLE);
-  
-  /* TIM2 enable output */
-  TIM_CtrlPWMOutputs(TIM2, ENABLE);
 }
 
 /* Periodic 2ms interrupt */

@@ -63,6 +63,7 @@ extern u16 BTN_INC_press_timer;
 extern bool LCD_UPDATE_LIMIT_FLAG;
 
 extern _Bool FLAG_10ms;
+extern _Bool FLAG_100ms;
 extern _Bool FLAG_250ms;
 extern _Bool FLAG_500ms;
 extern _Bool FLAG_1000ms;

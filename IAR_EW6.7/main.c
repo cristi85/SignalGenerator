@@ -17,9 +17,28 @@ typedef enum
   LCD_Update_Voltage    = (u8)0x02,
   LCD_Update_Power      = (u8)0x04,
   LCD_Update_Ireq       = (u8)0x08,
-  LCD_Update_Cal        = (u8)0x10
+  LCD_Update_Cal        = (u8)0x10,
+  LCD_Update_CPU_Load   = (u8)0x20
 }LCD_Update_t;
-LCD_Update_t LCD_Update = LCD_Update_NO_UPDATE;
+volatile LCD_Update_t LCD_Update = LCD_Update_NO_UPDATE;
+
+typedef enum
+{
+  RunningTask_NoTask = (u8)0x00,
+  RunningTask_10ms   = (u8)0x01,
+  RunningTask_100ms  = (u8)0x02,
+  RunningTask_250ms  = (u8)0x04,
+  RunningTask_500ms  = (u8)0x08,
+  RunningTask_1000ms = (u8)0x10,
+  RunningTask_Bkg    = (u8)0x20
+}RunningTask_t;
+RunningTask_t RunningTask = RunningTask_NoTask;
+
+/* Runtime measurement */
+u32 start_task, end_task, total_task = 0, cpuload_task = 0;
+u32 start_int, end_int, total_int = 0, total_int_intask = 0, cpuload_int = 0;
+u32 cpuload, cpuload_old, cpuload_min = U32_MAX, cpuload_max = 0;
+bool flag_int_active = FALSE;
 
 bool flag_LCD_Update_row1 = FALSE;
 bool flag_LCD_Update_row2 = FALSE;
@@ -30,6 +49,7 @@ void Convert2String_Voltage(u32 UmV);
 void Convert2String_Ireq(u16 Requested_Current);
 void Convert2String_Cal(u32 CurrentSenOffset);
 void Convert2String_Power(u32 PowermW);
+void Convert2String_CPUload(u16 pcpuload);
 
 #define STM_Clk_Src_HSI  (u8)0
 #define STM_Clk_Src_HSE  (u8)1
@@ -82,9 +102,11 @@ int main(void)
     /* ============== CYCLIC ENTRIES ================= */
     if(FLAG_10ms)
     {
+      RunningTask |= RunningTask_10ms;
+      start_task = TIM2->CNT;
       /* Power and current limit check */
       FLAG_10ms = FALSE;
-      DEBUGPIN_TOGGLE;
+      //DEBUGPIN_TOGGLE;
       if(FLAG_RdCurrentSenOffset)
       {
         if(FLAG_ADC_NewData)
@@ -153,6 +175,9 @@ int main(void)
           //DEBUGPIN_LOW;
         }
       }
+      end_task = TIM2->CNT;
+      total_task += end_task - start_task; /* contains also interrupt time which has to be substracted */
+      RunningTask &= (u8)(~RunningTask_10ms);
     }
     
     /* ============== PRESS BTN INC ================= */
@@ -178,6 +203,24 @@ int main(void)
     {
       BTN_MODE_DELAY_FLAG = FALSE;
     }
+    if(FLAG_100ms)
+    {
+      DEBUGPIN_TOGGLE;
+      FLAG_100ms = FALSE;
+      total_task -= total_int_intask; /* substract from task time, interrupt time that occured during task runtime */
+      cpuload_task = total_task * 1000 / 100000;
+      cpuload_int = total_int * 1000 / 100000;
+      cpuload = cpuload_task + cpuload_int;
+      if(cpuload != cpuload_old) {
+        LCD_Update |= LCD_Update_CPU_Load;
+      }
+      cpuload_old = cpuload;
+      if(cpuload_max < cpuload) cpuload_max = cpuload;
+      if(cpuload_min > cpuload) cpuload_min = cpuload;
+      total_task = 0;
+      total_int = 0;
+      total_int_intask = 0;
+    }
     if(FLAG_1000ms)
     {
       FLAG_1000ms = FALSE;
@@ -193,9 +236,11 @@ int main(void)
       FLAG_250ms = FALSE;
     }
 
-    LCD_Update = LCD_Update_Current|LCD_Update_Voltage|LCD_Update_Ireq|LCD_Update_Power;
+    //LCD_Update = LCD_Update_Current|LCD_Update_Voltage|LCD_Update_Ireq|LCD_Update_Power|LCD_Update_CPU_Load;
     /* BACKGROUND TASK - SHOULD NOT TAKE MORE THAN 1MS IN ONE PASS!!! */
     //DEBUGPIN_HIGH;
+    RunningTask |= RunningTask_Bkg;
+    start_task = TIM2->CNT;
     /* ============== LCD UPDATE CHECK ================= */
     if(LCD_Update && !FLAG_RdCurrentSenOffset && LCD_UPDATE_LIMIT_FLAG)
     {
@@ -203,7 +248,6 @@ int main(void)
       {
       case 0:
         {
-          /* Max Duration: 1ms, 3 steps */
           if(LCD_Home())
           {
             step_Background_Task++;
@@ -223,10 +267,10 @@ int main(void)
             Convert2String_Voltage(UmV);
             flag_LCD_Update_row1 = TRUE;
           }
-          if(LCD_Update & LCD_Update_Ireq) {
+          /*if(LCD_Update & LCD_Update_Ireq) {
             Convert2String_Ireq(Requested_Current);
             flag_LCD_Update_row2 = TRUE;
-          }
+          }*/
           if(LCD_Update & LCD_Update_Cal) {
             Convert2String_Cal(CurrentSenOffset);
           }
@@ -234,20 +278,18 @@ int main(void)
             Convert2String_Power(PowermW);
             flag_LCD_Update_row2 = TRUE;
           }
-          
-          if(!flag_LCD_Update_row1 && flag_LCD_Update_row2) {
-            step_Background_Task = 3;
+          if(LCD_Update & LCD_Update_CPU_Load) {
+            Convert2String_CPUload((u16)cpuload);
+            flag_LCD_Update_row2 = TRUE;
           }
-          else {
-            step_Background_Task = 2;
-          }
+          step_Background_Task++;
           break;
         }
       case 2:
-        {
+        {  
           if(LCD_WriteString(lcd_row1)) {
             step_Background_Task++;
-          }
+          } 
           break;
         }
       case 3:
@@ -255,7 +297,6 @@ int main(void)
           if(LCD_WriteString(lcd_row2)) {
             LCD_Update = LCD_Update_NO_UPDATE;
             LCD_UPDATE_LIMIT_FLAG = FALSE;
-            
             step_Background_Task = 0; 
           }
           break;
@@ -263,6 +304,9 @@ int main(void)
       default: break;
       }
     }
+    end_task = TIM2->CNT;
+    total_task += end_task - start_task;  /* contains also interrupt time which has to be substracted */
+    RunningTask &= (u8)(~RunningTask_Bkg);
     //DEBUGPIN_LOW;
     /* ============== END LCD UPDATE CHECK ================= */
   }
@@ -333,6 +377,25 @@ void Convert2String_Ireq(u16 pRequested_Current)
   ROW_USED_IREQ[5+ROW_OFFSET_IREQ] = (u8)(temp_ReqCurrent % 10) + 48;
   temp_ReqCurrent /= 10;
   ROW_USED_IREQ[4+ROW_OFFSET_IREQ] = (u8)(temp_ReqCurrent % 10) + 48;
+}
+
+void Convert2String_CPUload(u16 pcpuload)
+{
+  /* Row2 left */
+#define ROW_OFFSET_IREQ (u8)0
+#define ROW_USED_IREQ   lcd_row2
+  u32 temp_CPUload = pcpuload;
+  
+  ROW_USED_IREQ[0+ROW_OFFSET_IREQ] = 'C';
+  ROW_USED_IREQ[1+ROW_OFFSET_IREQ] = 'P';
+  ROW_USED_IREQ[2+ROW_OFFSET_IREQ] = 'U';
+  ROW_USED_IREQ[3+ROW_OFFSET_IREQ] = '=';
+  ROW_USED_IREQ[6+ROW_OFFSET_IREQ] = '.';
+  ROW_USED_IREQ[7+ROW_OFFSET_IREQ] = (u8)(temp_CPUload % 10) + 48;
+  temp_CPUload /= 10;
+  ROW_USED_IREQ[5+ROW_OFFSET_IREQ] = (u8)(temp_CPUload % 10) + 48;
+  temp_CPUload /= 10;
+  ROW_USED_IREQ[4+ROW_OFFSET_IREQ] = (u8)(temp_CPUload % 10) + 48;
 }
 
 void Convert2String_Cal(u32 CurrentSenOffset)
