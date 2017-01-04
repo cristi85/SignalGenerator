@@ -21,6 +21,8 @@ typedef enum
 }LCD_Update_t;
 LCD_Update_t LCD_Update = LCD_Update_NO_UPDATE;
 
+bool flag_LCD_Update_row1 = FALSE;
+bool flag_LCD_Update_row2 = FALSE;
 static u8 step_Background_Task = 0;
 
 void Convert2String_Current(u32 ImA);
@@ -69,9 +71,9 @@ int main(void)
   Errors_Init();
   
   SystemCoreClockUpdate();
-  
+    
   LCD_Initialize();
-  LCD_Clear();
+  while(!LCD_Clear());
   while(!LCD_Home());
   while(!LCD_WriteString("Calibrating..."));
   
@@ -191,7 +193,9 @@ int main(void)
       FLAG_250ms = FALSE;
     }
 
+    LCD_Update = LCD_Update_Current|LCD_Update_Voltage|LCD_Update_Ireq|LCD_Update_Power;
     /* BACKGROUND TASK - SHOULD NOT TAKE MORE THAN 1MS IN ONE PASS!!! */
+    //DEBUGPIN_HIGH;
     /* ============== LCD UPDATE CHECK ================= */
     if(LCD_Update && !FLAG_RdCurrentSenOffset && LCD_UPDATE_LIMIT_FLAG)
     {
@@ -208,14 +212,35 @@ int main(void)
         }
       case 1:
         {
+          flag_LCD_Update_row1 = FALSE;
+          flag_LCD_Update_row2 = FALSE;
           /* Max Duration: 26.5us, 1 step */
-          if(LCD_Update & LCD_Update_Current)  Convert2String_Current(ImA);
-          if(LCD_Update & LCD_Update_Voltage)  Convert2String_Voltage(UmV);
-          if(LCD_Update & LCD_Update_Ireq)     Convert2String_Ireq(Requested_Current);
-          if(LCD_Update & LCD_Update_Cal)      Convert2String_Cal(CurrentSenOffset);
-          if(LCD_Update & LCD_Update_Power)    Convert2String_Power(PowermW);
+          if(LCD_Update & LCD_Update_Current) {
+            Convert2String_Current(ImA);
+            flag_LCD_Update_row1 = TRUE;
+          }
+          if(LCD_Update & LCD_Update_Voltage) {
+            Convert2String_Voltage(UmV);
+            flag_LCD_Update_row1 = TRUE;
+          }
+          if(LCD_Update & LCD_Update_Ireq) {
+            Convert2String_Ireq(Requested_Current);
+            flag_LCD_Update_row2 = TRUE;
+          }
+          if(LCD_Update & LCD_Update_Cal) {
+            Convert2String_Cal(CurrentSenOffset);
+          }
+          if(LCD_Update & LCD_Update_Power) {
+            Convert2String_Power(PowermW);
+            flag_LCD_Update_row2 = TRUE;
+          }
           
-          step_Background_Task++;
+          if(!flag_LCD_Update_row1 && flag_LCD_Update_row2) {
+            step_Background_Task = 3;
+          }
+          else {
+            step_Background_Task = 2;
+          }
           break;
         }
       case 2:
@@ -238,6 +263,7 @@ int main(void)
       default: break;
       }
     }
+    //DEBUGPIN_LOW;
     /* ============== END LCD UPDATE CHECK ================= */
   }
 }

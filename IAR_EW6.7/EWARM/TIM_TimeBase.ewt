@@ -1221,6 +1221,9 @@
       <name>$PROJ_DIR$\..\delay.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\delay.h</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\errors.c</name>
     </file>
     <file>
