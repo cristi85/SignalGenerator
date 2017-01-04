@@ -3,49 +3,68 @@
 #include "board.h"
 #include "types.h"
 
+/* variables for delay_us function witch is blocking and has only one instance */
+static volatile u16 t15_tstamp, t15_delta;
+
+/* variables for delay_us_nonblocking functions witch are nonblocking and have their own variables */
+static volatile u16 t15nonblock_tstamp1, t15nonblock_delta1;
+static u8 t15nonblock_step1 = 0;
+static volatile u16 t15nonblock_tstamp2, t15nonblock_delta2;
+static u8 t15nonblock_step2 = 0;
 /**
-  Uses Timer 15, Timer15 clock must be activated before
-  * @brief  time delay in 10us unit
-  * @param  n_10us is how many 10us of time to delay
+  Uses Timer 15
+  * @brief  time delay in us unit
+  * @param  n_us is how many us to delay
   * @retval None
   */
-void delay_10us(u16 n_10us)
+void delay_us(u16 n_us)
 {
-  /* Enable Counter */
-  TIM_Cmd(TIM15, ENABLE);
-  
-  TIM_SetCounter(TIM15, 0);
-
-  /* clear update flag */
-  TIM_ClearITPendingBit(TIM15, TIM_IT_Update);
-
-  while(n_10us--)
+  t15_tstamp = TIM15->CNT;
+  while(1)
   {
-    while(TIM_GetFlagStatus(TIM15, TIM_IT_Update) == RESET);
-    TIM_ClearITPendingBit(TIM15, TIM_IT_Update);
+    t15_delta = TIM15->CNT - t15_tstamp;
+    if(t15_delta >= n_us) break;
   }
-
-  /* Disable Counter */
-  TIM_Cmd(TIM15, DISABLE);
 }
 
 /**
-  * @brief  delay for some time in 4us unit(not so accurate for small values for n_4us)
-            Timer4 has to be configured with prescaler 8 (for 2MHz SYSCLK) and peripheral clock enabled before calling this function
-            Timer4 will be incremented every 4us
-            Delay range for this function is 4us to 1020us for n_4us of 1 to 255
-  * @param n_26us is how many 26.31us of time to delay
-  * @retval None
+  Non blocking delay function
+  * @brief  time delay in us unit
+  * @param  n_us is how many us to delay
+  * @retval Function returns 0 when delay time has not passed and 1 when delay time has passed
   */
-/*void delay_4us(u8 n_4us)
+u8 delay_us_nonblocking1(u16 n_us)
 {
-  TIM4->CNTR = 3;
-  TIM4->ARR = n_4us;
-  TIM4->SR1 &= (u8)(~TIM4_FLAG_Update);   // clear update flag
-  TIM4->CR1 |= TIM4_CR1_CEN;   // Enable Counter
+  if(t15nonblock_step1 == 0)
+  {
+    t15nonblock_tstamp1 = TIM15->CNT;
+    t15nonblock_step1 = 1;
+  }
+  else
+  {
+    t15nonblock_delta1 = TIM15->CNT - t15nonblock_tstamp1;
+    if(t15nonblock_delta1 >= n_us) {
+      t15nonblock_step1 = 0;
+      return 1;
+    }
+  }
+  return 0;
+}
 
-  while((TIM4->SR1 & TIM4_FLAG_Update) == 0);
-  TIM4->SR1 &= (u8)(~TIM4_FLAG_Update);
-    
-  TIM4->CR1 &= (u8)(~TIM4_CR1_CEN);   // Disable Counter
-}*/
+u8 delay_us_nonblocking2(u16 n_us)
+{
+  if(t15nonblock_step2 == 0)
+  {
+    t15nonblock_tstamp2 = TIM15->CNT;
+    t15nonblock_step2 = 1;
+  }
+  else
+  {
+    t15nonblock_delta2 = TIM15->CNT - t15nonblock_tstamp2;
+    if(t15nonblock_delta2 >= n_us) {
+      t15nonblock_step2 = 0;
+      return 1;
+    }
+  }
+  return 0;
+}

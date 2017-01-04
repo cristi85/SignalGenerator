@@ -17,7 +17,13 @@
                      while((TIM14->SR & TIM_SR_UIF)==0){}  \
                      TIM14->SR &= ~TIM_SR_UIF;  
 
-//Uses Timer 15, Timer15 clock must be activated before
-void delay_10us(u16);
+/* Blocking delay functions */
+void delay_us(u16);
+
+/* Non blocking delay functions */
+/* If multiple functions are active at the same time, they must be different functions!!! */
+/* If the same function is active in more than one place at the same time it will behave like a single function */
+u8 delay_us_nonblocking1(u16 n_us);
+u8 delay_us_nonblocking2(u16 n_us);
 
 #endif
