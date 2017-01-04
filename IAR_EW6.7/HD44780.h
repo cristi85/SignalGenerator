@@ -98,7 +98,7 @@
 // display, which may corrupt the display settings or text on the display.
 // Don't - just don't.
 // ----------------------------------------------------------------------------
-void LCD_Clock(void);
+u8 LCD_Clock(void);
 
 // LCD_Write()
 // Parameters: 1

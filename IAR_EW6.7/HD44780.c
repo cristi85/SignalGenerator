@@ -5,6 +5,7 @@
 
 static u8 step_LCD_Home = 0;
 static u8 step_LCD_GoTo = 0;
+static u8 step_LCD_Clock = 0;
 static u8 step_LCD_WriteString = 0;
 static u8 step_LCD_Move_Cursor = 0;
 static u8 step_LCD_Clear = 0;
@@ -14,36 +15,65 @@ static char _lcd_string[18] = " ";
 /******************************************************************************
 *                          Basic display functions                            *
 ******************************************************************************/
-void LCD_Clock()
+u8 LCD_Clock()
 {
-  LCD_EN(1);
-  delay_us(10);
-  LCD_EN(0);
-}
-
-u8 LCD_Write(u8 c) /* Duration 150us */
-{
-  if(step_LCD_Write == 0)
+  if(step_LCD_Clock == 0)
   {
-    LCD_D7((u8)((c >> 7) & 0x01));
-    LCD_D6((u8)((c >> 6) & 0x01));
-    LCD_D5((u8)((c >> 5) & 0x01));
-    LCD_D4((u8)((c >> 4) & 0x01));
-    LCD_Clock();  // 4-bit only
-    LCD_D7((u8)((c >> 3) & 0x01));
-    LCD_D6((u8)((c >> 2) & 0x01));
-    LCD_D5((u8)((c >> 1) & 0x01));
-    LCD_D4((u8)((c >> 0) & 0x01));
-    LCD_Clock();
-    step_LCD_Write = 1;
+    LCD_EN(1);
+    step_LCD_Clock = 1;
   }
   else
   {
-    if(delay_us_nonblocking1(100)) 
-    {
-      step_LCD_Write = 0;
-      return 1;
+    if(delay_us_nonblocking1(10)) {
+      LCD_EN(0);
+      step_LCD_Clock = 0;
+      return 1;  
     }
+  }
+  return 0;
+}
+
+u8 LCD_Write(u8 c)
+{
+  switch(step_LCD_Write)
+  {
+  case 0:
+    {
+      LCD_D7((u8)((c >> 7) & 0x01));
+      LCD_D6((u8)((c >> 6) & 0x01));
+      LCD_D5((u8)((c >> 5) & 0x01));
+      LCD_D4((u8)((c >> 4) & 0x01));
+      step_LCD_Write = 1;
+      break;
+    }
+  case 1:
+    {
+      if(LCD_Clock()) { // 4-bit only
+        LCD_D7((u8)((c >> 3) & 0x01));
+        LCD_D6((u8)((c >> 2) & 0x01));
+        LCD_D5((u8)((c >> 1) & 0x01));
+        LCD_D4((u8)((c >> 0) & 0x01));
+        step_LCD_Write = 2;
+      }
+      break;
+    }
+  case 2:
+    {
+      if(LCD_Clock()) {
+        step_LCD_Write = 3;
+      }
+      break;
+    }
+  case 3:
+    {
+      if(delay_us_nonblocking1(100)) 
+      {
+        step_LCD_Write = 0;
+        return 1;
+      }
+      break;
+    }
+  default: break;
   }
   return 0;
 }
