@@ -113,7 +113,7 @@ void LCD_Clock(void);
 // You may use this function alone but it's highly reccomended to only use when
 // you've got no other choice or when you want to write something in no-time
 // You may write 1 byte of data each call
-void LCD_Write(u8);
+u8 LCD_Write(u8);
 
 // LCD_Initialize()
 // Parameters: NONE
@@ -230,6 +230,6 @@ u8 LCD_GoTo(u8);
 // ----------------------------------------------------------------------------
 // As simple as the name: Clears any text written on the LCD and returns to home
 // ----------------------------------------------------------------------------
-void LCD_Clear(void);
+u8 LCD_Clear(void);
 
-void LCD_Move_Cursor(u8, u8);
+u8 LCD_Move_Cursor(u8, u8);
