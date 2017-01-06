@@ -18,7 +18,8 @@ typedef enum
   LCD_Update_Power      = (u8)0x04,
   LCD_Update_Ireq       = (u8)0x08,
   LCD_Update_Cal        = (u8)0x10,
-  LCD_Update_CPU_Load   = (u8)0x20
+  LCD_Update_CPU_Load   = (u8)0x20,
+  LCD_Update_MaxStack   = (u8)0x40
 }LCD_Update_t;
 volatile LCD_Update_t LCD_Update = LCD_Update_NO_UPDATE;
 
@@ -50,6 +51,7 @@ void Convert2String_Ireq(u16 Requested_Current);
 void Convert2String_Cal(u32 CurrentSenOffset);
 void Convert2String_Power(u32 PowermW);
 void Convert2String_CPUload(u16 pcpuload);
+void Convert2String_MaxStack(u16 pMaxStack);
 
 #define STM_Clk_Src_HSI  (u8)0
 #define STM_Clk_Src_HSE  (u8)1
@@ -58,6 +60,15 @@ extern u8 STM_Clk_Src;
 /* Vref INT CAL */
 const u16* ptr_VREFINT_CAL = (u16*)0x1FFFF7BA;
 u16 VrefINT_CAL; 
+
+/* Get Stack pointer */
+extern const u32 __ICFEDIT_size_cstack__;  //linker symbol with configured stack size
+#define STACK_SIZE  (u32)(&__ICFEDIT_size_cstack__)
+const u32* ptr_SP = (u32*)0x08000000;
+u32 StackAddressTop;
+u32 StackAddresBottom;
+u32 current_SP;
+u32 MaxStackUsage = 0, MaxStackUsage_old = 0;
 
 /* LCD MACROS and variables */
 #define LCD_CLEAR_ROW     "                "
@@ -87,6 +98,8 @@ bool FLAG_RdCurrentSenOffset = TRUE;
 int main(void)
 {
   VrefINT_CAL = *ptr_VREFINT_CAL;
+  StackAddressTop = *ptr_SP;
+  StackAddresBottom = StackAddressTop - STACK_SIZE;
   Config();
   Errors_Init();
   
@@ -207,6 +220,7 @@ int main(void)
     {
       DEBUGPIN_TOGGLE;
       FLAG_100ms = FALSE;
+      /* CPU load calculation */
       total_task -= total_int_intask; /* substract from task time, interrupt time that occured during task runtime */
       cpuload_task = total_task * 1000 / 100000;
       cpuload_int = total_int * 1000 / 100000;
@@ -220,6 +234,22 @@ int main(void)
       total_task = 0;
       total_int = 0;
       total_int_intask = 0;
+      
+      /* Max STACK consumption calculation */
+      /* Search for the first stack value different than pattern */
+      current_SP = StackAddresBottom;
+      while(current_SP <= StackAddressTop)
+      {
+        if(*(u32*)current_SP != (u32)0xABCDABCD)
+        {
+          MaxStackUsage = (current_SP - StackAddresBottom)*100 / STACK_SIZE;
+          MaxStackUsage = 100 - MaxStackUsage;
+          if(MaxStackUsage != MaxStackUsage_old) LCD_Update |= LCD_Update_MaxStack;
+          MaxStackUsage_old = MaxStackUsage;
+          break;
+        }
+        current_SP += 4;
+      }
     }
     if(FLAG_1000ms)
     {
@@ -274,8 +304,12 @@ int main(void)
           if(LCD_Update & LCD_Update_Cal) {
             Convert2String_Cal(CurrentSenOffset);
           }
-          if(LCD_Update & LCD_Update_Power) {
+          /*if(LCD_Update & LCD_Update_Power) {
             Convert2String_Power(PowermW);
+            flag_LCD_Update_row2 = TRUE;
+          }*/
+          if(LCD_Update & LCD_Update_MaxStack) {
+            Convert2String_MaxStack(MaxStackUsage);
             flag_LCD_Update_row2 = TRUE;
           }
           if(LCD_Update & LCD_Update_CPU_Load) {
@@ -382,20 +416,37 @@ void Convert2String_Ireq(u16 pRequested_Current)
 void Convert2String_CPUload(u16 pcpuload)
 {
   /* Row2 left */
-#define ROW_OFFSET_IREQ (u8)0
-#define ROW_USED_IREQ   lcd_row2
+#define ROW_OFFSET_CPULOAD (u8)0
+#define ROW_USED_CPULOAD   lcd_row2
   u32 temp_CPUload = pcpuload;
   
-  ROW_USED_IREQ[0+ROW_OFFSET_IREQ] = 'C';
-  ROW_USED_IREQ[1+ROW_OFFSET_IREQ] = 'P';
-  ROW_USED_IREQ[2+ROW_OFFSET_IREQ] = 'U';
-  ROW_USED_IREQ[3+ROW_OFFSET_IREQ] = '=';
-  ROW_USED_IREQ[6+ROW_OFFSET_IREQ] = '.';
-  ROW_USED_IREQ[7+ROW_OFFSET_IREQ] = (u8)(temp_CPUload % 10) + 48;
+  ROW_USED_CPULOAD[0+ROW_OFFSET_CPULOAD] = 'C';
+  ROW_USED_CPULOAD[1+ROW_OFFSET_CPULOAD] = 'P';
+  ROW_USED_CPULOAD[2+ROW_OFFSET_CPULOAD] = 'U';
+  ROW_USED_CPULOAD[3+ROW_OFFSET_CPULOAD] = '=';
+  ROW_USED_CPULOAD[6+ROW_OFFSET_CPULOAD] = '.';
+  ROW_USED_CPULOAD[8+ROW_OFFSET_CPULOAD] = '%';
+  ROW_USED_CPULOAD[7+ROW_OFFSET_CPULOAD] = (u8)(temp_CPUload % 10) + 48;
   temp_CPUload /= 10;
-  ROW_USED_IREQ[5+ROW_OFFSET_IREQ] = (u8)(temp_CPUload % 10) + 48;
+  ROW_USED_CPULOAD[5+ROW_OFFSET_CPULOAD] = (u8)(temp_CPUload % 10) + 48;
   temp_CPUload /= 10;
-  ROW_USED_IREQ[4+ROW_OFFSET_IREQ] = (u8)(temp_CPUload % 10) + 48;
+  ROW_USED_CPULOAD[4+ROW_OFFSET_CPULOAD] = (u8)(temp_CPUload % 10) + 48;
+}
+
+void Convert2String_MaxStack(u16 pMaxStack)
+{
+  /* Row2 left */
+#define ROW_OFFSET_MAXSTACK (u8)10
+#define ROW_USED_MAXSTACK   lcd_row2
+  u32 temp_MaxStack = pMaxStack;
+  
+  ROW_USED_MAXSTACK[0+ROW_OFFSET_MAXSTACK] = 'S';
+  ROW_USED_MAXSTACK[1+ROW_OFFSET_MAXSTACK] = 'T';
+  ROW_USED_MAXSTACK[2+ROW_OFFSET_MAXSTACK] = '=';
+  ROW_USED_MAXSTACK[4+ROW_OFFSET_MAXSTACK] = (u8)(temp_MaxStack % 10) + 48;
+  temp_MaxStack /= 10;
+  ROW_USED_MAXSTACK[3+ROW_OFFSET_MAXSTACK] = (u8)(temp_MaxStack % 10) + 48;
+  ROW_USED_MAXSTACK[5+ROW_OFFSET_MAXSTACK] = '%';
 }
 
 void Convert2String_Cal(u32 CurrentSenOffset)

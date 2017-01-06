@@ -58,7 +58,7 @@
         DATA
 __vector_table
         DCD     sfe(CSTACK)
-        DCD     Reset_Handler                  ; Reset Handler
+        DCD     Reset_Handler_stack_pattern    ; Reset Handler
 
         DCD     NMI_Handler                    ; NMI Handler
         DCD     HardFault_Handler              ; Hard Fault Handler
@@ -115,10 +115,34 @@ __vector_table
 ;;
         THUMB
 
-        PUBWEAK Reset_Handler
+        ;PUBWEAK Reset_Handler_stack_pattern
+        EXTERN __ICFEDIT_size_cstack__
+Reset_Handler_stack_pattern
+        LDR     R0, =__ICFEDIT_size_cstack__  ;get configured stack size
+        LDR     R1, =0x08000000               ;here is where SP is stored
+        LDR     R1, [R1]                      ;get SP in R1
+        SUBS    R1, R1, #0x4                  ;
+        SUBS    R1, R1, R0                    ;get stack lowest address
+        LDR     R2, =0xABCDABCD
+        MOV     R3, SP
+        SUBS    R3, R3, #4
+stack_pattern_loop:        
+        CMP     R3, R1                        ;current stack address in R3, lowest allowed stack address in R1
+        BEQ     stack_pattern_done            ;if equal the above addresses, jump to finish, else continue to 
+        STR     R2, [R3]                      ;copy pattern in stack area
+        SUBS    R3, R3, #0x4
+        B       stack_pattern_loop
+stack_pattern_done:       
+
+        LDR     R0, =SystemInit 
+        BLX     R0
+        LDR     R0, =__iar_program_start
+        BX      R0
+
+        ;PUBWEAK Reset_Handler
         SECTION .text:CODE:REORDER(2)
 Reset_Handler
-        LDR     R0, =SystemInit
+        LDR     R0, =SystemInit 
         BLX     R0
         LDR     R0, =__iar_program_start
         BX      R0
