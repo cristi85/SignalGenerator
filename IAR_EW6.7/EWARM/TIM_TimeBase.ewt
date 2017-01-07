@@ -1233,6 +1233,18 @@
       <name>$PROJ_DIR$\..\main.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\rtms.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\rtms.h</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\stackusage.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\stackusage.h</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\stm32f0xx_it.c</name>
     </file>
     <file>

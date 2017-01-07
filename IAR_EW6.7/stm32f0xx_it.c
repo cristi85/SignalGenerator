@@ -32,6 +32,7 @@
 #include "types.h"
 #include "stm32f0xx_it.h"
 #include "config.h"
+#include "rtms.h"
 
 //ADC measurements
 volatile u16 ADC_Conv_Tab_Avg[ADC_Scan_Channels];
@@ -112,20 +113,6 @@ extern u16 Timeout_toutcnt2;
 extern u16 Timeout_tout1;
 extern u16 Timeout_tout2;
 /*====================*/
-/* Runtime measurement */
-extern u32 start_int, end_int, total_int, cpuload_int, total_int_intask;
-extern bool flag_int_active;
-typedef enum
-{
-  RunningTask_NoTask = (u8)0x00,
-  RunningTask_10ms   = (u8)0x01,
-  RunningTask_100ms  = (u8)0x02,
-  RunningTask_250ms  = (u8)0x04,
-  RunningTask_500ms  = (u8)0x08,
-  RunningTask_1000ms = (u8)0x10,
-  RunningTask_Bkg    = (u8)0x20
-}RunningTask_t;
-extern RunningTask_t RunningTask;
 
 /******************************************************************************/
 /*            Cortex-M0 Processor Exceptions Handlers                         */
@@ -142,7 +129,7 @@ void IT_Init()
 void DMA1_Channel1_IRQHandler() /* every 14.5us */
 {
   u8 i;
-  start_int = TIM2->CNT;
+  RTMS_MeasureIntStart;
   /* DMA1 Channel1 Transfer Complete interrupt handler - DMA has transferred ADC data to ADC_Conv_Tab */
   /* Vref, PA3, PA5 */
   /* Vref, U, I */
@@ -167,11 +154,7 @@ void DMA1_Channel1_IRQHandler() /* every 14.5us */
     }
   }
   DMA1->IFCR = DMA1_IT_TC1;
-  end_int = TIM2->CNT;
-  total_int += end_int - start_int;
-  if(RunningTask != RunningTask_NoTask) {
-    total_int_intask += end_int - start_int;
-  }
+  RTMS_MeasureIntEnd;
 }
 void TIM2_IRQHandler(void)
 {
@@ -241,7 +224,7 @@ void SysTick_Handler(void)
   */
 void TIM3_IRQHandler(void)  
 {
-  start_int = TIM2->CNT;
+  RTMS_MeasureIntStart;
   if(TIM_GetITStatus(TIM3, TIM_IT_Update))  // Duration 5.5us every 2ms
   {
     /* ===== CKECK PERIODIC TASKS FLAGS ===== */
@@ -408,11 +391,7 @@ void TIM3_IRQHandler(void)
     
     TIM_ClearITPendingBit(TIM3, TIM_IT_Update);        // clear TIM1 CC2 interrupt flag
   }
-  end_int = TIM2->CNT;
-  total_int += end_int - start_int;
-  if(RunningTask != RunningTask_NoTask) {
-    total_int_intask += end_int - start_int;
-  }
+  RTMS_MeasureIntEnd;
 }
 
 void USART1_IRQHandler(void)

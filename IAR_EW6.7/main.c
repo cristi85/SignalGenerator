@@ -9,6 +9,8 @@
 #include "timeout.h"
 #include "hd44780.h"
 #include "string.h"
+#include "rtms.h"
+#include "stackusage.h" 
 
 typedef enum
 {
@@ -23,24 +25,6 @@ typedef enum
 }LCD_Update_t;
 volatile LCD_Update_t LCD_Update = LCD_Update_NO_UPDATE;
 
-typedef enum
-{
-  RunningTask_NoTask = (u8)0x00,
-  RunningTask_10ms   = (u8)0x01,
-  RunningTask_100ms  = (u8)0x02,
-  RunningTask_250ms  = (u8)0x04,
-  RunningTask_500ms  = (u8)0x08,
-  RunningTask_1000ms = (u8)0x10,
-  RunningTask_Bkg    = (u8)0x20
-}RunningTask_t;
-RunningTask_t RunningTask = RunningTask_NoTask;
-
-/* Runtime measurement */
-u32 start_task, end_task, total_task = 0, cpuload_task = 0;
-u32 start_int, end_int, total_int = 0, total_int_intask = 0, cpuload_int = 0;
-u32 cpuload, cpuload_old, cpuload_min = U32_MAX, cpuload_max = 0;
-bool flag_int_active = FALSE;
-
 bool flag_LCD_Update_row1 = FALSE;
 bool flag_LCD_Update_row2 = FALSE;
 static u8 step_Background_Task = 0;
@@ -51,7 +35,7 @@ void Convert2String_Ireq(u16 Requested_Current);
 void Convert2String_Cal(u32 CurrentSenOffset);
 void Convert2String_Power(u32 PowermW);
 void Convert2String_CPUload(u16 pcpuload);
-void Convert2String_MaxStack(u16 pMaxStack);
+void Convert2String_MaxStack(u8 pMaxStack);
 
 #define STM_Clk_Src_HSI  (u8)0
 #define STM_Clk_Src_HSE  (u8)1
@@ -61,14 +45,8 @@ extern u8 STM_Clk_Src;
 const u16* ptr_VREFINT_CAL = (u16*)0x1FFFF7BA;
 u16 VrefINT_CAL; 
 
-/* Get Stack pointer */
-extern const u32 __ICFEDIT_size_cstack__;  //linker symbol with configured stack size
-#define STACK_SIZE  (u32)(&__ICFEDIT_size_cstack__)
-const u32* ptr_SP = (u32*)0x08000000;
-u32 StackAddressTop;
-u32 StackAddresBottom;
-u32 current_SP;
-u32 MaxStackUsage = 0, MaxStackUsage_old = 0;
+u16 CpuLoad_old = 0;
+u8  MaxStackUsage_old = 0;
 
 /* LCD MACROS and variables */
 #define LCD_CLEAR_ROW     "                "
@@ -98,8 +76,7 @@ bool FLAG_RdCurrentSenOffset = TRUE;
 int main(void)
 {
   VrefINT_CAL = *ptr_VREFINT_CAL;
-  StackAddressTop = *ptr_SP;
-  StackAddresBottom = StackAddressTop - STACK_SIZE;
+  StackUsage_Init();
   Config();
   Errors_Init();
   
@@ -115,8 +92,7 @@ int main(void)
     /* ============== CYCLIC ENTRIES ================= */
     if(FLAG_10ms)
     {
-      RunningTask |= RunningTask_10ms;
-      start_task = TIM2->CNT;
+      RTMS_MeasureTaskStart(RunningTask_10ms);
       /* Power and current limit check */
       FLAG_10ms = FALSE;
       //DEBUGPIN_TOGGLE;
@@ -188,9 +164,7 @@ int main(void)
           //DEBUGPIN_LOW;
         }
       }
-      end_task = TIM2->CNT;
-      total_task += end_task - start_task; /* contains also interrupt time which has to be substracted */
-      RunningTask &= (u8)(~RunningTask_10ms);
+      RTMS_MeasureTaskEnd(RunningTask_10ms);
     }
     
     /* ============== PRESS BTN INC ================= */
@@ -218,41 +192,19 @@ int main(void)
     }
     if(FLAG_100ms)
     {
+      RTMS_MeasureTaskStart(RunningTask_100ms);
       DEBUGPIN_TOGGLE;
+      StackUsage_CalcMaxUsage();
+      if(StackUsage_GetMaxStackUsage() != MaxStackUsage_old) LCD_Update |= LCD_Update_MaxStack;
+      MaxStackUsage_old = StackUsage_GetMaxStackUsage();
       FLAG_100ms = FALSE;
-      /* CPU load calculation */
-      total_task -= total_int_intask; /* substract from task time, interrupt time that occured during task runtime */
-      cpuload_task = total_task * 1000 / 100000;
-      cpuload_int = total_int * 1000 / 100000;
-      cpuload = cpuload_task + cpuload_int;
-      if(cpuload != cpuload_old) {
-        LCD_Update |= LCD_Update_CPU_Load;
-      }
-      cpuload_old = cpuload;
-      if(cpuload_max < cpuload) cpuload_max = cpuload;
-      if(cpuload_min > cpuload) cpuload_min = cpuload;
-      total_task = 0;
-      total_int = 0;
-      total_int_intask = 0;
-      
-      /* Max STACK consumption calculation */
-      /* Search for the first stack value different than pattern */
-      current_SP = StackAddresBottom;
-      while(current_SP <= StackAddressTop)
-      {
-        if(*(u32*)current_SP != (u32)0xABCDABCD)
-        {
-          MaxStackUsage = (current_SP - StackAddresBottom)*100 / STACK_SIZE;
-          MaxStackUsage = 100 - MaxStackUsage;
-          if(MaxStackUsage != MaxStackUsage_old) LCD_Update |= LCD_Update_MaxStack;
-          MaxStackUsage_old = MaxStackUsage;
-          break;
-        }
-        current_SP += 4;
-      }
+      RTMS_MeasureTaskEnd(RunningTask_100ms);
     }
     if(FLAG_1000ms)
     {
+      RTMS_CpuLoadCalculation();
+      if(RTMS_GetCpuLoadCurrent() != CpuLoad_old) LCD_Update |= LCD_Update_CPU_Load;
+      CpuLoad_old = RTMS_GetCpuLoadCurrent();
       FLAG_1000ms = FALSE;
     }
     
@@ -269,8 +221,7 @@ int main(void)
     //LCD_Update = LCD_Update_Current|LCD_Update_Voltage|LCD_Update_Ireq|LCD_Update_Power|LCD_Update_CPU_Load;
     /* BACKGROUND TASK - SHOULD NOT TAKE MORE THAN 1MS IN ONE PASS!!! */
     //DEBUGPIN_HIGH;
-    RunningTask |= RunningTask_Bkg;
-    start_task = TIM2->CNT;
+    RTMS_MeasureTaskStart(RunningTask_Bkg);
     /* ============== LCD UPDATE CHECK ================= */
     if(LCD_Update && !FLAG_RdCurrentSenOffset && LCD_UPDATE_LIMIT_FLAG)
     {
@@ -309,11 +260,11 @@ int main(void)
             flag_LCD_Update_row2 = TRUE;
           }*/
           if(LCD_Update & LCD_Update_MaxStack) {
-            Convert2String_MaxStack(MaxStackUsage);
+            Convert2String_MaxStack(StackUsage_GetMaxStackUsage());
             flag_LCD_Update_row2 = TRUE;
           }
           if(LCD_Update & LCD_Update_CPU_Load) {
-            Convert2String_CPUload((u16)cpuload);
+            Convert2String_CPUload(RTMS_GetCpuLoadCurrent());
             flag_LCD_Update_row2 = TRUE;
           }
           step_Background_Task++;
@@ -338,9 +289,7 @@ int main(void)
       default: break;
       }
     }
-    end_task = TIM2->CNT;
-    total_task += end_task - start_task;  /* contains also interrupt time which has to be substracted */
-    RunningTask &= (u8)(~RunningTask_Bkg);
+    RTMS_MeasureTaskEnd(RunningTask_Bkg);
     //DEBUGPIN_LOW;
     /* ============== END LCD UPDATE CHECK ================= */
   }
@@ -433,20 +382,22 @@ void Convert2String_CPUload(u16 pcpuload)
   ROW_USED_CPULOAD[4+ROW_OFFSET_CPULOAD] = (u8)(temp_CPUload % 10) + 48;
 }
 
-void Convert2String_MaxStack(u16 pMaxStack)
+void Convert2String_MaxStack(u8 pMaxStack)
 {
   /* Row2 left */
-#define ROW_OFFSET_MAXSTACK (u8)10
+#define ROW_OFFSET_MAXSTACK (u8)9
 #define ROW_USED_MAXSTACK   lcd_row2
   u32 temp_MaxStack = pMaxStack;
   
   ROW_USED_MAXSTACK[0+ROW_OFFSET_MAXSTACK] = 'S';
   ROW_USED_MAXSTACK[1+ROW_OFFSET_MAXSTACK] = 'T';
   ROW_USED_MAXSTACK[2+ROW_OFFSET_MAXSTACK] = '=';
+  ROW_USED_MAXSTACK[5+ROW_OFFSET_MAXSTACK] = (u8)(temp_MaxStack % 10) + 48;
+  temp_MaxStack /= 10;
   ROW_USED_MAXSTACK[4+ROW_OFFSET_MAXSTACK] = (u8)(temp_MaxStack % 10) + 48;
   temp_MaxStack /= 10;
   ROW_USED_MAXSTACK[3+ROW_OFFSET_MAXSTACK] = (u8)(temp_MaxStack % 10) + 48;
-  ROW_USED_MAXSTACK[5+ROW_OFFSET_MAXSTACK] = '%';
+  ROW_USED_MAXSTACK[6+ROW_OFFSET_MAXSTACK] = '%';
 }
 
 void Convert2String_Cal(u32 CurrentSenOffset)
