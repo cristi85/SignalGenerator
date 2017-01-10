@@ -1,0 +1,11 @@
+Voltage reading:
+there is an offset for measured voltage < 13,8V (-0.05V @ displayed 1V which drops to nearly 0V @ displayed 13.8V - aprox 1.25V ADC input) - Investigate
+2.45V input -> 2.4V displayed
+8V input -> 7.97V displayed
+13V input -> 12.98V displayed
+15V input -> 15V displayed
+
+Adjust PID so that a desired constant current is drained from source
+
+Adjust PID so that a desired constant power is drained from source
+

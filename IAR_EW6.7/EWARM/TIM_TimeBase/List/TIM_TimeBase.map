@@ -1,6 +1,6 @@
 ###############################################################################
 #
-# IAR ELF Linker V7.70.2.11706/W32 for ARM                08/Jan/2017  18:20:02
+# IAR ELF Linker V7.70.2.11706/W32 for ARM                10/Jan/2017  17:48:39
 # Copyright 2007-2016 IAR Systems AB.
 #
 #    Output file  =  
@@ -76,7 +76,7 @@ initialize by copy { rw };
   .intvec            ro code  0x08000000    0xf8  startup_stm32f0xx.o [1]
                             - 0x080000f8    0xf8
 
-"P1":                                     0x1ab7
+"P1":                                     0x1adb
   .text              ro code  0x080000f8   0x550  main.o [1]
   .text              ro code  0x08000648    0x54  stackusage.o [1]
   .text              ro code  0x0800069c   0x44c  config.o [1]
@@ -98,44 +98,44 @@ initialize by copy { rw };
   .text              ro code  0x080015c8    0x54  delay.o [1]
   .text              ro code  0x0800161c     0x2  IntDivZer.o [4]
   .text              ro code  0x0800161e     0x2  startup_stm32f0xx.o [1]
-  .text              ro code  0x08001620   0x3f6  stm32f0xx_it.o [1]
-  .text              ro code  0x08001a16    0x3c  zero_init3.o [4]
-  .text              ro code  0x08001a52    0x3c  packbits_init_single.o [4]
-  .text              ro code  0x08001a8e     0x2  startup_stm32f0xx.o [1]
-  .text              ro code  0x08001a90    0x28  data_init.o [4]
-  .iar.init_table    const    0x08001ab8    0x20  - Linker created -
-  .text              ro code  0x08001ad8    0x1a  cmain.o [4]
-  .text              ro code  0x08001af2     0x4  low_level_init.o [3]
-  .text              ro code  0x08001af6     0x8  exit.o [3]
-  .text              ro code  0x08001afe     0x2  startup_stm32f0xx.o [1]
-  .text              ro code  0x08001b00     0xa  cexit.o [4]
-  .text              ro code  0x08001b0a     0x2  startup_stm32f0xx.o [1]
-  .text              ro code  0x08001b0c    0x14  exit.o [5]
-  .rodata            const    0x08001b20    0x10  main.o [1]
-  .text              ro code  0x08001b30    0x10  startup_stm32f0xx.o [1]
-  .text              ro code  0x08001b40     0xc  cstartup_M.o [4]
-  .text              ro code  0x08001b4c     0x2  startup_stm32f0xx.o [1]
-  .text              ro code  0x08001b4e     0x2  startup_stm32f0xx.o [1]
-  .text              ro code  0x08001b50     0x2  startup_stm32f0xx.o [1]
-  .text              ro code  0x08001b52     0x2  startup_stm32f0xx.o [1]
-  .text              ro code  0x08001b54     0x2  startup_stm32f0xx.o [1]
-  .text              ro code  0x08001b56     0x2  startup_stm32f0xx.o [1]
-  .text              ro code  0x08001b58     0x2  startup_stm32f0xx.o [1]
-  .text              ro code  0x08001b5a     0x2  startup_stm32f0xx.o [1]
-  .text              ro code  0x08001b5c     0x2  startup_stm32f0xx.o [1]
-  .text              ro code  0x08001b5e     0x2  startup_stm32f0xx.o [1]
-  .text              ro code  0x08001b60     0x2  startup_stm32f0xx.o [1]
-  .text              ro code  0x08001b62     0x2  startup_stm32f0xx.o [1]
-  .text              ro code  0x08001b64     0x2  startup_stm32f0xx.o [1]
-  .text              ro code  0x08001b66     0x2  startup_stm32f0xx.o [1]
-  .text              ro code  0x08001b68     0x2  startup_stm32f0xx.o [1]
-  .text              ro code  0x08001b6a     0x2  startup_stm32f0xx.o [1]
-  .text              ro code  0x08001b6c     0x2  startup_stm32f0xx.o [1]
-  .text              ro code  0x08001b6e     0x2  startup_stm32f0xx.o [1]
-  .rodata            const    0x08001b70     0x0  zero_init3.o [4]
-  .rodata            const    0x08001b70     0x0  packbits_init_single.o [4]
-  Initializer bytes  const    0x08001b70    0x3f  <for P2-1>
-                            - 0x08001baf  0x1ab7
+  .text              ro code  0x08001620   0x41a  stm32f0xx_it.o [1]
+  .text              ro code  0x08001a3a    0x3c  zero_init3.o [4]
+  .text              ro code  0x08001a76    0x3c  packbits_init_single.o [4]
+  .text              ro code  0x08001ab2     0x2  startup_stm32f0xx.o [1]
+  .text              ro code  0x08001ab4    0x28  data_init.o [4]
+  .iar.init_table    const    0x08001adc    0x20  - Linker created -
+  .text              ro code  0x08001afc    0x1a  cmain.o [4]
+  .text              ro code  0x08001b16     0x4  low_level_init.o [3]
+  .text              ro code  0x08001b1a     0x8  exit.o [3]
+  .text              ro code  0x08001b22     0x2  startup_stm32f0xx.o [1]
+  .text              ro code  0x08001b24     0xa  cexit.o [4]
+  .text              ro code  0x08001b2e     0x2  startup_stm32f0xx.o [1]
+  .text              ro code  0x08001b30    0x14  exit.o [5]
+  .rodata            const    0x08001b44    0x10  main.o [1]
+  .text              ro code  0x08001b54    0x10  startup_stm32f0xx.o [1]
+  .text              ro code  0x08001b64     0xc  cstartup_M.o [4]
+  .text              ro code  0x08001b70     0x2  startup_stm32f0xx.o [1]
+  .text              ro code  0x08001b72     0x2  startup_stm32f0xx.o [1]
+  .text              ro code  0x08001b74     0x2  startup_stm32f0xx.o [1]
+  .text              ro code  0x08001b76     0x2  startup_stm32f0xx.o [1]
+  .text              ro code  0x08001b78     0x2  startup_stm32f0xx.o [1]
+  .text              ro code  0x08001b7a     0x2  startup_stm32f0xx.o [1]
+  .text              ro code  0x08001b7c     0x2  startup_stm32f0xx.o [1]
+  .text              ro code  0x08001b7e     0x2  startup_stm32f0xx.o [1]
+  .text              ro code  0x08001b80     0x2  startup_stm32f0xx.o [1]
+  .text              ro code  0x08001b82     0x2  startup_stm32f0xx.o [1]
+  .text              ro code  0x08001b84     0x2  startup_stm32f0xx.o [1]
+  .text              ro code  0x08001b86     0x2  startup_stm32f0xx.o [1]
+  .text              ro code  0x08001b88     0x2  startup_stm32f0xx.o [1]
+  .text              ro code  0x08001b8a     0x2  startup_stm32f0xx.o [1]
+  .text              ro code  0x08001b8c     0x2  startup_stm32f0xx.o [1]
+  .text              ro code  0x08001b8e     0x2  startup_stm32f0xx.o [1]
+  .text              ro code  0x08001b90     0x2  startup_stm32f0xx.o [1]
+  .text              ro code  0x08001b92     0x2  startup_stm32f0xx.o [1]
+  .rodata            const    0x08001b94     0x0  zero_init3.o [4]
+  .rodata            const    0x08001b94     0x0  packbits_init_single.o [4]
+  Initializer bytes  const    0x08001b94    0x3f  <for P2-1>
+                            - 0x08001bd3  0x1adb
 
 "P2", part 1 of 2:                          0xf6
   P2-1                        0x20000000    0xf6  <Init block>
@@ -187,7 +187,7 @@ Zero (__iar_zero_init3)
 
 Copy/packbits (__iar_packbits_init_single3)
     1 source range, total size 0x3f (25% of destination):
-          0x08001b70  0x3f
+          0x08001b94  0x3f
     1 destination range, total size 0xf6:
           0x20000000  0xf6
 
@@ -203,7 +203,7 @@ Copy/packbits (__iar_packbits_init_single3)
 
 
 Program entry
-  "__iar_program_start": 0x08001b41
+  "__iar_program_start": 0x08001b65
 
   Maximum call chain                              144  bytes
 
@@ -220,67 +220,68 @@ Uncalled function
   Maximum call chain                               28  bytes
 
     "DMA1_Channel1_IRQHandler"                     20
+    "__aeabi_idiv"                                  0
     "__aeabi_uidiv"                                 8
     "__aeabi_idiv0"                                 0
 
 Uncalled function
-  "HardFault_Handler": 0x080016d1
+  "HardFault_Handler": 0x080016f5
 
   Maximum call chain                                0  bytes
 
     "HardFault_Handler"                             0
 
 Uncalled function
-  "NMI_Handler": 0x080016cf
+  "NMI_Handler": 0x080016f3
 
   Maximum call chain                                0  bytes
 
     "NMI_Handler"                                   0
 
 Uncalled function
-  "PendSV_Handler": 0x080016d5
+  "PendSV_Handler": 0x080016f9
 
   Maximum call chain                                0  bytes
 
     "PendSV_Handler"                                0
 
 Uncalled function
-  "SVC_Handler": 0x080016d3
+  "SVC_Handler": 0x080016f7
 
   Maximum call chain                                0  bytes
 
     "SVC_Handler"                                   0
 
 Uncalled function
-  "SysTick_Handler": 0x080016d7
+  "SysTick_Handler": 0x080016fb
 
   Maximum call chain                                0  bytes
 
     "SysTick_Handler"                               0
 
 Uncalled function
-  "TIM17_IRQHandler": 0x08001995
+  "TIM17_IRQHandler": 0x080019b9
 
   Maximum call chain                                8  bytes
 
     "TIM17_IRQHandler"                              8
 
 Uncalled function
-  "TIM2_IRQHandler": 0x080016cd
+  "TIM2_IRQHandler": 0x080016f1
 
   Maximum call chain                                0  bytes
 
     "TIM2_IRQHandler"                               0
 
 Uncalled function
-  "TIM3_IRQHandler": 0x080016d9
+  "TIM3_IRQHandler": 0x080016fd
 
   Maximum call chain                               20  bytes
 
     "TIM3_IRQHandler"                              20
 
 Uncalled function
-  "USART1_IRQHandler": 0x08001a15
+  "USART1_IRQHandler": 0x08001a39
 
   Maximum call chain                                0  bytes
 
@@ -313,14 +314,14 @@ D:\Work\Bitbucket\ProgrammableLoad_SW\IAR_EW6.7\EWARM\TIM_TimeBase\Obj: [1]
     stm32f0xx_dac.o              80
     stm32f0xx_dma.o             200
     stm32f0xx_gpio.o            106
-    stm32f0xx_it.o            1 014       11       79
+    stm32f0xx_it.o            1 050       11       79
     stm32f0xx_misc.o             84
     stm32f0xx_rcc.o              96
     stm32f0xx_tim.o             188
     system_stm32f0xx.o          340        5       20
     timeout.o                    28        4       12
     -------------------------------------------------
-    Total:                    6 509       79      326
+    Total:                    6 545       79      326
 
 command line: [2]
     -------------------------------------------------
@@ -352,7 +353,7 @@ shb_l.a: [5]
     Gaps                          1
     Linker created                        32    1 024
 -----------------------------------------------------
-    Grand Total:              6 976      111    1 350
+    Grand Total:              7 012      111    1 350
 
 
 *******************************************************************************
@@ -361,9 +362,9 @@ shb_l.a: [5]
 
 Entry                      Address   Size  Type      Object
 -----                      -------   ----  ----      ------
-.iar.init_table$$Base   0x08001ab8          --   Gb  - Linker created -
-.iar.init_table$$Limit  0x08001ad8          --   Gb  - Linker created -
-?main                   0x08001ad9         Code  Gb  cmain.o [4]
+.iar.init_table$$Base   0x08001adc          --   Gb  - Linker created -
+.iar.init_table$$Limit  0x08001afc          --   Gb  - Linker created -
+?main                   0x08001afd         Code  Gb  cmain.o [4]
 ADC_ChannelConfig       0x08001451    0xa  Code  Gb  stm32f0xx_adc.o [1]
 ADC_Cmd                 0x08001427   0x12  Code  Gb  stm32f0xx_adc.o [1]
 ADC_Conv_Tab            0x20000104    0x8  Data  Gb  stm32f0xx_it.o [1]
@@ -413,7 +414,7 @@ DAC_Cmd                 0x080011c3   0x18  Code  Gb  stm32f0xx_dac.o [1]
 DAC_Init                0x080011a9   0x1a  Code  Gb  stm32f0xx_dac.o [1]
 DAC_SetChannel1Data     0x080011db   0x1a  Code  Gb  stm32f0xx_dac.o [1]
 DMA1_Channel1_IRQHandler
-                        0x08001621   0x88  Code  Gb  stm32f0xx_it.o [1]
+                        0x08001621   0xa8  Code  Gb  stm32f0xx_it.o [1]
 DMA_Cmd                 0x08001575   0x14  Code  Gb  stm32f0xx_dma.o [1]
 DMA_DeInit              0x080014e5   0x5a  Code  Gb  stm32f0xx_dma.o [1]
 DMA_ITConfig            0x08001589   0x12  Code  Gb  stm32f0xx_dma.o [1]
@@ -429,7 +430,7 @@ FLAG_500ms              0x200000c1    0x1  Data  Gb  stm32f0xx_it.o [1]
 FLAG_ADC_NewData        0x200000f9    0x1  Data  Gb  stm32f0xx_it.o [1]
 FLAG_PID_500us          0x20000147    0x1  Data  Gb  stm32f0xx_it.o [1]
 GPIO_Init               0x08001259   0x6a  Code  Gb  stm32f0xx_gpio.o [1]
-HardFault_Handler       0x080016d1    0x2  Code  Gb  stm32f0xx_it.o [1]
+HardFault_Handler       0x080016f5    0x2  Code  Gb  stm32f0xx_it.o [1]
 ImA                     0x2000004c    0x4  Data  Lc  main.o [1]
 ImA_old                 0x20000050    0x4  Data  Lc  main.o [1]
 ImA_test                0x2000006c    0x4  Data  Gb  main.o [1]
@@ -444,7 +445,7 @@ LCD_Write               0x08000cbd  0x104  Code  Gb  HD44780.o [1]
 LCD_WriteString         0x08000f0d   0x7c  Code  Gb  HD44780.o [1]
 MaxStackUsage           0x20000118    0x1  Data  Lc  stackusage.o [1]
 MaxStackUsage_old       0x20000030    0x1  Data  Gb  main.o [1]
-NMI_Handler             0x080016cf    0x2  Code  Gb  stm32f0xx_it.o [1]
+NMI_Handler             0x080016f3    0x2  Code  Gb  stm32f0xx_it.o [1]
 NVIC_Init               0x080012c5   0x48  Code  Gb  stm32f0xx_misc.o [1]
 PID_Derivative          0x20000064    0x4  Data  Gb  main.o [1]
 PID_Error               0x20000058    0x4  Data  Gb  main.o [1]
@@ -452,7 +453,7 @@ PID_Error_old           0x2000005c    0x4  Data  Gb  main.o [1]
 PID_Integral            0x20000060    0x4  Data  Gb  main.o [1]
 PID_Out                 0x2000003c    0x2  Data  Gb  main.o [1]
 PID_Out_temp            0x20000068    0x4  Data  Gb  main.o [1]
-PendSV_Handler          0x080016d5    0x2  Code  Gb  stm32f0xx_it.o [1]
+PendSV_Handler          0x080016f9    0x2  Code  Gb  stm32f0xx_it.o [1]
 PowermW_old             0x20000054    0x4  Data  Lc  main.o [1]
 RCC_AHBPeriphClockCmd   0x080011f9   0x14  Code  Gb  stm32f0xx_rcc.o [1]
 RCC_APB1PeriphClockCmd  0x08001221   0x14  Code  Gb  stm32f0xx_rcc.o [1]
@@ -461,12 +462,12 @@ RCC_APB2PeriphResetCmd  0x08001235   0x14  Code  Gb  stm32f0xx_rcc.o [1]
 RTMS_CpuLoadCalculation
                         0x08001069   0x50  Code  Gb  rtms.o [1]
 RTMS_GetCpuLoadCurrent  0x080010b9    0x6  Code  Gb  rtms.o [1]
-Region$$Table$$Base     0x08001ab8          --   Gb  - Linker created -
-Region$$Table$$Limit    0x08001ad8          --   Gb  - Linker created -
+Region$$Table$$Base     0x08001adc          --   Gb  - Linker created -
+Region$$Table$$Limit    0x08001afc          --   Gb  - Linker created -
 Requested_Current       0x20000038    0x2  Data  Lc  main.o [1]
 Requested_Current_old   0x2000003a    0x2  Data  Lc  main.o [1]
 RunningTask             0x20000146    0x1  Data  Gb  rtms.o [1]
-SVC_Handler             0x080016d3    0x2  Code  Gb  stm32f0xx_it.o [1]
+SVC_Handler             0x080016f7    0x2  Code  Gb  stm32f0xx_it.o [1]
 StackAddresBottom       0x20000120    0x4  Data  Lc  stackusage.o [1]
 StackAddressTop         0x2000011c    0x4  Data  Lc  stackusage.o [1]
 StackUsage_CalcMaxUsage
@@ -474,13 +475,13 @@ StackUsage_CalcMaxUsage
 StackUsage_GetMaxStackUsage
                         0x08000689    0x6  Code  Gb  stackusage.o [1]
 StackUsage_Init         0x08000649   0x12  Code  Gb  stackusage.o [1]
-SysTick_Handler         0x080016d7    0x2  Code  Gb  stm32f0xx_it.o [1]
+SysTick_Handler         0x080016fb    0x2  Code  Gb  stm32f0xx_it.o [1]
 SystemCoreClock         0x200000b8    0x4  Data  Gb  system_stm32f0xx.o [1]
 SystemCoreClockUpdate   0x08000c0d   0x50  Code  Gb  system_stm32f0xx.o [1]
 SystemInit              0x08000b35   0xd8  Code  Gb  system_stm32f0xx.o [1]
-TIM17_IRQHandler        0x08001995   0x40  Code  Gb  stm32f0xx_it.o [1]
-TIM2_IRQHandler         0x080016cd    0x2  Code  Gb  stm32f0xx_it.o [1]
-TIM3_IRQHandler         0x080016d9  0x29c  Code  Gb  stm32f0xx_it.o [1]
+TIM17_IRQHandler        0x080019b9   0x40  Code  Gb  stm32f0xx_it.o [1]
+TIM2_IRQHandler         0x080016f1    0x2  Code  Gb  stm32f0xx_it.o [1]
+TIM3_IRQHandler         0x080016fd  0x29c  Code  Gb  stm32f0xx_it.o [1]
 TIM_ClearITPendingBit   0x080013bb    0x6  Code  Gb  stm32f0xx_tim.o [1]
 TIM_Cmd                 0x08001371   0x14  Code  Gb  stm32f0xx_tim.o [1]
 TIM_ITConfig            0x080013a9   0x12  Code  Gb  stm32f0xx_tim.o [1]
@@ -495,7 +496,7 @@ Timeout_tout1           0x200000ee    0x2  Data  Gb  timeout.o [1]
 Timeout_tout2           0x200000f4    0x2  Data  Gb  timeout.o [1]
 Timeout_toutcnt1        0x200000ec    0x2  Data  Gb  timeout.o [1]
 Timeout_toutcnt2        0x200000f2    0x2  Data  Gb  timeout.o [1]
-USART1_IRQHandler       0x08001a15    0x2  Code  Gb  stm32f0xx_it.o [1]
+USART1_IRQHandler       0x08001a39    0x2  Code  Gb  stm32f0xx_it.o [1]
 UmV                     0x20000044    0x4  Data  Lc  main.o [1]
 UmV_old                 0x20000048    0x4  Data  Lc  main.o [1]
 VrefINT_CAL             0x20000034    0x2  Data  Gb  main.o [1]
@@ -512,20 +513,20 @@ __aeabi_idiv0           0x0800161d         Code  Gb  IntDivZer.o [4]
 __aeabi_idivmod         0x080010f5         Code  Gb  I32DivModFast.o [4]
 __aeabi_uidiv           0x080010fb         Code  Gb  I32DivModFast.o [4]
 __aeabi_uidivmod        0x080010fb         Code  Gb  I32DivModFast.o [4]
-__cmain                 0x08001ad9         Code  Gb  cmain.o [4]
+__cmain                 0x08001afd         Code  Gb  cmain.o [4]
 __debug                 0x20000031    0x1  Data  Gb  main.o [1]
-__exit                  0x08001b0d   0x14  Code  Gb  exit.o [5]
-__iar_data_init3        0x08001a91   0x28  Code  Gb  data_init.o [4]
+__exit                  0x08001b31   0x14  Code  Gb  exit.o [5]
+__iar_data_init3        0x08001ab5   0x28  Code  Gb  data_init.o [4]
 __iar_packbits_init_single3
-                        0x08001a53   0x3c  Code  Gb  packbits_init_single.o [4]
-__iar_program_start     0x08001b41         Code  Gb  cstartup_M.o [4]
-__iar_zero_init3        0x08001a17   0x3c  Code  Gb  zero_init3.o [4]
-__low_level_init        0x08001af3    0x4  Code  Gb  low_level_init.o [3]
+                        0x08001a77   0x3c  Code  Gb  packbits_init_single.o [4]
+__iar_program_start     0x08001b65         Code  Gb  cstartup_M.o [4]
+__iar_zero_init3        0x08001a3b   0x3c  Code  Gb  zero_init3.o [4]
+__low_level_init        0x08001b17    0x4  Code  Gb  low_level_init.o [3]
 __vector_table          0x08000000         Data  Gb  startup_stm32f0xx.o [1]
-_call_main              0x08001ae5         Code  Gb  cmain.o [4]
-_exit                   0x08001b01         Code  Gb  cexit.o [4]
+_call_main              0x08001b09         Code  Gb  cmain.o [4]
+_exit                   0x08001b25         Code  Gb  cexit.o [4]
 _lcd_string             0x20000004   0x14  Data  Lc  HD44780.o [1]
-_main                   0x08001aef         Code  Gb  cmain.o [4]
+_main                   0x08001b13         Code  Gb  cmain.o [4]
 adc_samp_avg_cnt        0x200000f8    0x1  Data  Gb  stm32f0xx_it.o [1]
 btn_dec_0_cnt           0x200000c6    0x1  Data  Gb  stm32f0xx_it.o [1]
 btn_dec_1_cnt           0x200000c7    0x1  Data  Gb  stm32f0xx_it.o [1]
@@ -558,7 +559,7 @@ end_task                0x20000134    0x4  Data  Gb  rtms.o [1]
 error_cnt               0x2000012e    0x1  Data  Lc  errors.o [1]
 error_cnt_thr           0x08000b30    0x1  Data  Lc  errors.o [1]
 error_state             0x2000012f    0x1  Data  Lc  errors.o [1]
-exit                    0x08001af7    0x8  Code  Gb  exit.o [3]
+exit                    0x08001b1b    0x8  Code  Gb  exit.o [3]
 flag_LCD_Update_row1    0x2000002d    0x1  Data  Gb  main.o [1]
 flag_LCD_Update_row2    0x2000002e    0x1  Data  Gb  main.o [1]
 lcd_row1                0x20000018   0x14  Data  Lc  main.o [1]
@@ -593,7 +594,7 @@ total_task              0x20000094    0x4  Data  Gb  rtms.o [1]
 [4] = rt6M_tl.a
 [5] = shb_l.a
 
-  6 976 bytes of readonly  code memory
+  7 012 bytes of readonly  code memory
     111 bytes of readonly  data memory
   1 350 bytes of readwrite data memory
 
