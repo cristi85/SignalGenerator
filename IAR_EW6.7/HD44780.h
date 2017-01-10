@@ -129,7 +129,7 @@ u8 LCD_Write(u8);
 // Remember that you have to use this function before you do any operation on
 // the display or you'll miss the party.
 // ----------------------------------------------------------------------------
-void LCD_Initialize(void);
+u8 LCD_Initialize(void);
 
 /******************************************************************************
 *                          Extended display functions                         *

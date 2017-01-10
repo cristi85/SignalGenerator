@@ -3,6 +3,7 @@
 #include "delay.h"
 #include "HD44780.h"
 
+static u8 step_LCD_Initialize = 0;
 static u8 step_LCD_Home = 0;
 static u8 step_LCD_GoTo = 0;
 static u8 step_LCD_Clock = 0;
@@ -78,64 +79,123 @@ u8 LCD_Write(u8 c)
   return 0;
 }
 
-void LCD_Initialize()
+u8 LCD_Initialize()
 {
-  LCD_RS(0);
-  LCD_EN(0);
-
-  LCD_D7(0);
-  LCD_D6(0);
-  LCD_D5(1);
-  LCD_D4(1);
-  LCD_Clock();
-  delay_us(5000);
-
-  LCD_Clock();
-  delay_us(1000);
-
-  LCD_Clock();
-  delay_us(1000);
-
-  LCD_D7(0);
-  LCD_D6(0);
-  LCD_D5(1);
-  LCD_D4(0);
-  LCD_Clock();
-  delay_us(1000);
-
-  //At this point device switches to 4 bit mode
-
-  // FUNCTION SET				| 0  0  1  DL N  F  —  — |
-  // BIN_OR_BIT_MASK:			{ 0  0  1  0  0  0  0  0 }
-  // HEX_OR_BIT_MASK:			0x20
-  while(!LCD_Write((((LCD_DL<<4)&0x10)+((LCD_N<<3)&0x08)+((LCD_F <<2)&0x04)) | 0x20));
-
-  // DISPLAY ON/OFF CONTROL	| 0  0  0  0  1  D  C  B |
-  // BIN_OR_BIT_MASK:			{ 0  0  0  0  1  0  0  0 }
-  // HEX_OR_BIT_MASK:			0x08
-  while(!LCD_Write(0x08));   //Display is off, cursor off, cursor blink off
-
-  // CLEAR LCD DISPLAY
-  while(!LCD_Write(0x01));   
-
-  delay_us(4000);   //Wait for more than 3ms or until busy flag is clear
-
-  // ENTRY MODE SET			| 0  0  0  0  0  1  ID S |
-  // BIN_OR_BIT_MASK:			{ 0  0  0  0  0  1  0  0 }
-  // HEX_OR_BIT_MASK:			0x04
-  while(!LCD_Write((((LCD_ID<<1)&0x02)+(LCD_S&0x01)) | 0x04));
-
-  //Initialization complete
-
-  // DISPLAY ON/OFF CONTROL	| 0  0  0  0  1  D  C  B |
-  // BIN_OR_BIT_MASK:			{ 0  0  0  0  1  0  0  0 }
-  // HEX_OR_BIT_MASK:			0x08
-  while(!LCD_Write((((LCD_D<<2)&0x04)+((LCD_C<<1)&0x02)+(LCD_B&0x01)) | 0x08));
-
-  // CURSOR OR DISPLAY SHIFT	| 0  0  0  1  SC RL —  — |
-  // BIN_OR_BIT_MASK:			{ 0  0  0  1  0  0  0  0 } 
-  // HEX_OR_BIT_MASK:			0x10
-  //LCD_Write((((LCD_SC<<3)&0x08)+((LCD_RL<<3)&0x04)) | 0x10);
+  switch(step_LCD_Initialize)
+  {
+  case 0:
+    {
+      LCD_RS(0);
+      LCD_EN(0);
+      
+      LCD_D7(0);
+      LCD_D6(0);
+      LCD_D5(1);
+      LCD_D4(1);
+      step_LCD_Initialize = 1;
+      break;   
+    }
+  case 1:
+    {
+      if(LCD_Clock()) {
+        step_LCD_Initialize = 2;
+      }
+      break;
+    }
+  case 2:
+    {
+      if(delay_us_nonblocking1(5000)) {
+        step_LCD_Initialize = 3;
+      }
+      break;
+    }
+  case 3:
+    {
+      if(LCD_Clock()) {
+        step_LCD_Initialize = 4;
+      }
+      break;
+    }
+  case 4:
+    {
+      if(delay_us_nonblocking1(1000)) {
+        step_LCD_Initialize = 5;
+      }
+      break;
+    }
+  case 5:
+    {
+      if(LCD_Clock()) {
+        step_LCD_Initialize = 6;
+      }
+      break;
+    }
+  case 6:
+    {
+      if(delay_us_nonblocking1(1000)) {
+        LCD_D7(0);
+        LCD_D6(0);
+        LCD_D5(1);
+        LCD_D4(0);
+        step_LCD_Initialize = 7;
+      }
+      break;
+    }
+  case 7:
+    {
+      if(LCD_Clock()) {
+        step_LCD_Initialize = 8;
+      }
+      break;
+    }
+  case 8:
+    {
+      if(delay_us_nonblocking1(1000)) {
+        step_LCD_Initialize = 9;
+      }
+      break;
+    }
+  case 9:
+    {
+      //At this point device switches to 4 bit mode
+      
+      // FUNCTION SET				| 0  0  1  DL N  F  —  — |
+      // BIN_OR_BIT_MASK:			{ 0  0  1  0  0  0  0  0 }
+      // HEX_OR_BIT_MASK:			0x20
+      while(!LCD_Write((((LCD_DL<<4)&0x10)+((LCD_N<<3)&0x08)+((LCD_F <<2)&0x04)) | 0x20));
+      
+      // DISPLAY ON/OFF CONTROL	| 0  0  0  0  1  D  C  B |
+      // BIN_OR_BIT_MASK:			{ 0  0  0  0  1  0  0  0 }
+      // HEX_OR_BIT_MASK:			0x08
+      while(!LCD_Write(0x08));   //Display is off, cursor off, cursor blink off
+      
+      // CLEAR LCD DISPLAY
+      while(!LCD_Write(0x01));   
+      
+      delay_us(4000);   //Wait for more than 3ms or until busy flag is clear
+      
+      // ENTRY MODE SET			| 0  0  0  0  0  1  ID S |
+      // BIN_OR_BIT_MASK:			{ 0  0  0  0  0  1  0  0 }
+      // HEX_OR_BIT_MASK:			0x04
+      while(!LCD_Write((((LCD_ID<<1)&0x02)+(LCD_S&0x01)) | 0x04));
+      
+      //Initialization complete
+      
+      // DISPLAY ON/OFF CONTROL	| 0  0  0  0  1  D  C  B |
+      // BIN_OR_BIT_MASK:			{ 0  0  0  0  1  0  0  0 }
+      // HEX_OR_BIT_MASK:			0x08
+      while(!LCD_Write((((LCD_D<<2)&0x04)+((LCD_C<<1)&0x02)+(LCD_B&0x01)) | 0x08));
+      
+      // CURSOR OR DISPLAY SHIFT	| 0  0  0  1  SC RL —  — |
+      // BIN_OR_BIT_MASK:			{ 0  0  0  1  0  0  0  0 } 
+      // HEX_OR_BIT_MASK:			0x10
+      //LCD_Write((((LCD_SC<<3)&0x08)+((LCD_RL<<3)&0x04)) | 0x10);
+      step_LCD_Initialize = 0;
+      return 1;
+    }
+  default: break;
+  }
+  return 0;
 }
 
 /******************************************************************************

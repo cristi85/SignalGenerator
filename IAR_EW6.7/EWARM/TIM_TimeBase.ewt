@@ -1218,6 +1218,9 @@
       <name>$PROJ_DIR$\..\config.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\config.h</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\delay.c</name>
     </file>
     <file>
@@ -1228,6 +1231,9 @@
     </file>
     <file>
       <name>$PROJ_DIR$\..\HD44780.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\HD44780.h</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\main.c</name>
