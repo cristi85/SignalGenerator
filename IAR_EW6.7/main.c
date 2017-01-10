@@ -11,6 +11,7 @@
 #include "string.h"
 #include "rtms.h"
 #include "stackusage.h" 
+#include "pid.h"
 
 typedef enum
 {
@@ -64,42 +65,46 @@ static u32 ImA = 0;
 static u32 ImA_old = 0;
 static u32 PowermW = 0;
 static u32 PowermW_old = 0;
-static u16 DACdata = 0;
-static u16 Requested_Current = 0, Requested_Current_old = 0;
+static u16 Requested_Current = 500, Requested_Current_old = 0;
 bool FLAG_Power_limit = FALSE;
 bool FLAG_Current_limit = FALSE;
 
-/* Current PID */
-const u32 K_P = 1;
-const u32 K_I = 0;
-const u32 K_D = 0;
-s32 PID_Error = 0;
-s32 PID_Error_old = 0;
-s32 PID_Integral = 0, PID_Derivative = 0;
-s32 PID_Out_temp = 0;
-u16 PID_Out = 0;
+
 u32 volatile ImA_test = 0;
 
 /* LEM current sensor offset variables */
 #define CURRENTSEN_NUMREADS (u8)32
 u32 CurrentSenOffset = 0, CurrentSenOffset_acc = 0;
-u8 cnt_RdCurrentSenOffset = 0;
+u8 cnt_RdCurrentSenOffset;
+u8 cnt_discardADC;
 
 int main(void)
 {
   VrefINT_CAL = *ptr_VREFINT_CAL;
   StackUsage_Init();
   Config();
+  DAC_SetChannel1Data(DAC_Align_12b_R, 0);
   Errors_Init();
   
   SystemCoreClockUpdate();
-    
+  
   while(!LCD_Initialize());
   while(!LCD_Clear());
   while(!LCD_Home());
   while(!LCD_WriteString("Calibrating..."));
   
+  /* Discard first 10 ADC values */
+  cnt_discardADC = 0;
+  while(cnt_discardADC < 10)
+  {
+    if(FLAG_ADC_NewData) {
+      cnt_discardADC++;
+      FLAG_ADC_NewData = FALSE;
+    }
+  }
+  
   /* LEM current sensor read 0 current output */
+  cnt_RdCurrentSenOffset = 0;
   while(1)
   {
     if(FLAG_ADC_NewData)
@@ -212,19 +217,8 @@ int main(void)
         if(PowermW != PowermW_old) LCD_Update |= LCD_Update_Power;
         PowermW_old = PowermW;
         
-        PID_Error = Requested_Current - ImA_test;
-        PID_Integral += PID_Error /** 0.0005*/;
-        PID_Derivative = (PID_Error - PID_Error_old) /*/ 0.0005*/;
-        PID_Out_temp = K_P * PID_Error;
-        PID_Error_old = PID_Error;
-        if(PID_Out_temp > 0) {
-          PID_Out = (u16)(PID_Out_temp / 70) + CurrentSenOffset;
-        }
-        else {
-          PID_Out = CurrentSenOffset;
-        }
-        DAC_SetChannel1Data(DAC_Align_12b_R, PID_Out);
-        
+        DAC_SetChannel1Data(DAC_Align_12b_R, PID_Update(Requested_Current - ImA, CurrentSenOffset));
+        //DAC_SetChannel1Data(DAC_Align_12b_R, (u16)(ImA_test));
         //DEBUGPIN_LOW;
       }
       else

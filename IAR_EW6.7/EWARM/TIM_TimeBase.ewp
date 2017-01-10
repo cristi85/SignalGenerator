@@ -1047,6 +1047,12 @@
       <name>$PROJ_DIR$\..\main.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\pid.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\pid.h</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\rtms.c</name>
     </file>
     <file>
