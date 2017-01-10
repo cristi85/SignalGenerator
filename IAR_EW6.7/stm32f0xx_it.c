@@ -102,7 +102,7 @@ u16 BTN_MODE_press_timer = 0;
 /* LCD Update limit */
 bool LCD_UPDATE_LIMIT_FLAG = FALSE;
 u16 lcd_update_limit_delay_cnt = 0;
-#define LCD_UPDATE_LIMIT_DELAY (u8)125  /* limit LCD update to maximum once overy 125*2ms (250ms) */
+#define LCD_UPDATE_LIMIT_DELAY (u8)166  /* limit LCD update to maximum once overy 166*2ms (333ms) */
 
 
 /* Public variables */
@@ -152,7 +152,8 @@ void DMA1_Channel1_IRQHandler() /* every 75us - TIM15 triggered */
         ADC_Conv_Tab_Avg[i] = ADC_Conv_Tab_Avg_Acc[i] / ADC_AVG_SAMP;
         ADC_Conv_Tab_Avg_Acc[i] = 0;
       }
-      //ADC_Conv_Tab_Avg[0] = (u16)((ADC_Conv_Tab_Avg[0] * VrefINT_CAL) / ADC_Conv_Tab_Avg[1]);   //Voltage correction based on Vref
+      ADC_VOLTAGE = (u16)((ADC_VOLTAGE * VrefINT_CAL) / ADC_VREF);   //Voltage correction based on Vref
+      ADC_CURRENT = (u16)((ADC_CURRENT * VrefINT_CAL) / ADC_VREF);   //Current correction based on Vref
       FLAG_ADC_NewData = TRUE;
     }
   }
