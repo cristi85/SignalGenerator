@@ -67,11 +67,12 @@ extern _Bool FLAG_100ms;
 extern _Bool FLAG_250ms;
 extern _Bool FLAG_500ms;
 extern _Bool FLAG_1000ms;
+extern bool FLAG_PID_500us;
 extern _Bool FLAG_ADC_NewData;
 extern void IT_Init(void);
 
 /* ADC measurements */
-extern volatile u16 ADC_Conv_Tab_Avg[ADC_Scan_Channels];
+extern volatile u16 ADC_Conv_Tab_Avg[ADC_SCAN_CHANNELS];
 #define ADC_VREF     ADC_Conv_Tab_Avg[0]
 #define ADC_VOLTAGE  ADC_Conv_Tab_Avg[1]
 #define ADC_CURRENT  ADC_Conv_Tab_Avg[2]

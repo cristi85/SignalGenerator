@@ -4,7 +4,7 @@
 #include "errors.h"
 #include "timeout.h"
 
-extern volatile u16 ADC_Conv_Tab[ADC_Scan_Channels];  /* 0 - PA5, 1 - Vref */
+extern volatile u16 ADC_Conv_Tab[ADC_SCAN_CHANNELS];  /* 0 - PA5, 1 - Vref */
 
 void Config_UART1(void);
 void Config_TIM1(void);
@@ -14,6 +14,8 @@ void Config_TIM6(void);
 void Config_GPIO(void);
 void Config_TIM14(void);
 void Config_TIM15(void);
+void Config_TIM16(void);
+void Config_TIM17(void);
 void Config_COMP1(void);
 void Config_DAC_DMA(void);
 void Config_DAC(void);
@@ -31,10 +33,12 @@ void Config()
   Config_TIM3();      /* Periodic 2ms interrupt */
   //Config_TIM6();     /* Periodic DAC triggering */
   //Config_TIM14();
-  Config_TIM15();    /* for delay_10us */
+  Config_ADC1_DMA();
+  Config_TIM15();    /* for ADC triggering */
+  Config_TIM16();    /* for delay module */
+  Config_TIM17();    /* for current/power control PID task triggering */
   //Config_DAC_DMA();
   Config_DAC();
-  Config_ADC1_DMA();
 }
 
 void Config_GPIO()
@@ -245,11 +249,53 @@ void Config_TIM15()
   
   TIM_TimeBaseInitStruct.TIM_Prescaler = 47;                         // for division to 48 (1us resolution), prescaler has to be set to 48-1
   TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;       // This parameter can be a value of @ref TIM_Counter_Mode
-  TIM_TimeBaseInitStruct.TIM_Period = 0xFFFF;                        // This parameter must be a number between 0x0000 and 0xFFFF
+  TIM_TimeBaseInitStruct.TIM_Period = 39;                            // Overflow every (39+1) us
   TIM_TimeBaseInitStruct.TIM_ClockDivision = TIM_CKD_DIV1;           // This parameter can be a value of @ref TIM_Clock_Division_CKD
   TIM_TimeBaseInitStruct.TIM_RepetitionCounter = 0x00;               // This parameter is valid only for TIM1
   TIM_TimeBaseInit(TIM15, &TIM_TimeBaseInitStruct);
+  TIM_SelectOutputTrigger(TIM15, TIM_TRGOSource_Update);
   TIM_Cmd(TIM15, ENABLE);
+}
+
+void Config_TIM16()
+{
+  TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
+  /* TIM16 clock enable */
+  RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM16, ENABLE);
+  
+  TIM_TimeBaseInitStruct.TIM_Prescaler = 47;                         // for division to 48 (1us resolution), prescaler has to be set to 48-1
+  TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;       // This parameter can be a value of @ref TIM_Counter_Mode
+  TIM_TimeBaseInitStruct.TIM_Period = 0xFFFF;                        // This parameter must be a number between 0x0000 and 0xFFFF
+  TIM_TimeBaseInitStruct.TIM_ClockDivision = TIM_CKD_DIV1;           // This parameter can be a value of @ref TIM_Clock_Division_CKD
+  TIM_TimeBaseInitStruct.TIM_RepetitionCounter = 0x00;               // This parameter is valid only for TIM1
+  TIM_TimeBaseInit(TIM16, &TIM_TimeBaseInitStruct);
+  TIM_Cmd(TIM16, ENABLE);
+}
+
+void Config_TIM17()
+{
+  TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
+  NVIC_InitTypeDef NVIC_InitStructure;
+  /* TIM17 clock enable */
+  RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM17, ENABLE);
+  
+  /* Enable the TIM17 global Interrupt */
+  NVIC_InitStructure.NVIC_IRQChannel = TIM17_IRQn;
+  NVIC_InitStructure.NVIC_IRQChannelPriority = 1;
+  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+  NVIC_Init(&NVIC_InitStructure);
+  
+  TIM_TimeBaseInitStruct.TIM_Prescaler = 47;                         // for division to 48 (1us resolution), prescaler has to be set to 48-1
+  TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;       // This parameter can be a value of @ref TIM_Counter_Mode
+  TIM_TimeBaseInitStruct.TIM_Period = 499;                           // Overflow every (499+1) us
+  TIM_TimeBaseInitStruct.TIM_ClockDivision = TIM_CKD_DIV1;           // This parameter can be a value of @ref TIM_Clock_Division_CKD
+  TIM_TimeBaseInitStruct.TIM_RepetitionCounter = 0x00;               // This parameter is valid only for TIM1
+  TIM_TimeBaseInit(TIM17, &TIM_TimeBaseInitStruct);
+  TIM17->CNT = 0;
+  TIM_ClearITPendingBit(TIM17, TIM_IT_Update);
+  TIM_Cmd(TIM17, ENABLE);
+  /* Enable the TIM3 Update Interrupt Request */
+  TIM_ITConfig(TIM17, TIM_IT_Update, ENABLE);
 }
 
 void Config_UART1()
@@ -375,7 +421,7 @@ void Config_ADC1_DMA()
   DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)(&(ADC1->DR));
   DMA_InitStructure.DMA_MemoryBaseAddr = (u32)(&ADC_Conv_Tab);
   DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC;
-  DMA_InitStructure.DMA_BufferSize = ADC_Scan_Channels;
+  DMA_InitStructure.DMA_BufferSize = ADC_SCAN_CHANNELS;
   DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
   DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
   DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord;
@@ -390,7 +436,7 @@ void Config_ADC1_DMA()
   
   /* Enable the DMA channel 1 global Interrupt */
   NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel1_IRQn;
-  NVIC_InitStructure.NVIC_IRQChannelPriority = 0;
+  NVIC_InitStructure.NVIC_IRQChannelPriority = 1;
   NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
   NVIC_Init(&NVIC_InitStructure);
   
@@ -408,8 +454,9 @@ void Config_ADC1_DMA()
   
   /* Configure the ADC1 in continous mode withe a resolutuion equal to 12 bits  */
   ADC_InitStructure.ADC_Resolution = ADC_Resolution_12b;
-  ADC_InitStructure.ADC_ContinuousConvMode = ENABLE; 
-  ADC_InitStructure.ADC_ExternalTrigConvEdge = ADC_ExternalTrigConvEdge_None;
+  ADC_InitStructure.ADC_ContinuousConvMode = DISABLE;
+  ADC_InitStructure.ADC_ExternalTrigConvEdge = ADC_ExternalTrigConvEdge_Rising;
+  ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_T15_TRGO;
   ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
   ADC_InitStructure.ADC_ScanDirection = ADC_ScanDirection_Upward;
   ADC_Init(ADC1, &ADC_InitStructure); 

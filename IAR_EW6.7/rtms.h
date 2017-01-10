@@ -8,13 +8,14 @@
 
 typedef enum
 {
-  RunningTask_NoTask = (u8)0x00,
-  RunningTask_10ms   = (u8)0x01,
-  RunningTask_100ms  = (u8)0x02,
-  RunningTask_250ms  = (u8)0x04,
-  RunningTask_500ms  = (u8)0x08,
-  RunningTask_1000ms = (u8)0x10,
-  RunningTask_Bkg    = (u8)0x20
+  RunningTask_NoTask    = (u8)0x00,
+  RunningTask_10ms      = (u8)0x01,
+  RunningTask_100ms     = (u8)0x02,
+  RunningTask_250ms     = (u8)0x04,
+  RunningTask_500ms     = (u8)0x08,
+  RunningTask_1000ms    = (u8)0x10,
+  RunningTask_Bkg       = (u8)0x20,
+  RunningTask_PID_500us = (u8)0x40
 }RunningTask_t;
 
 extern u32 start_task, end_task, total_task, cpuload_task;

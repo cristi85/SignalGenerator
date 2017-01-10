@@ -47,6 +47,7 @@ u16 VrefINT_CAL;
 
 u16 CpuLoad_old = 0;
 u8  MaxStackUsage_old = 0;
+u8 volatile __debug;
 
 /* LCD MACROS and variables */
 #define LCD_CLEAR_ROW     "                "
@@ -68,10 +69,21 @@ static u16 Requested_Current = 0, Requested_Current_old = 0;
 bool FLAG_Power_limit = FALSE;
 bool FLAG_Current_limit = FALSE;
 
+/* Current PID */
+const u32 K_P = 1;
+const u32 K_I = 0;
+const u32 K_D = 0;
+s32 PID_Error = 0;
+s32 PID_Error_old = 0;
+s32 PID_Integral = 0, PID_Derivative = 0;
+s32 PID_Out_temp = 0;
+u16 PID_Out = 0;
+u32 volatile ImA_test = 0;
+
 /* LEM current sensor offset variables */
+#define CURRENTSEN_NUMREADS (u8)32
 u32 CurrentSenOffset = 0, CurrentSenOffset_acc = 0;
 u8 cnt_RdCurrentSenOffset = 0;
-bool FLAG_RdCurrentSenOffset = TRUE;
 
 int main(void)
 {
@@ -82,10 +94,29 @@ int main(void)
   
   SystemCoreClockUpdate();
     
-  LCD_Initialize();
+  while(!LCD_Initialize());
   while(!LCD_Clear());
   while(!LCD_Home());
   while(!LCD_WriteString("Calibrating..."));
+  
+  /* LEM current sensor read 0 current output */
+  while(1)
+  {
+    if(FLAG_ADC_NewData)
+    {
+      CurrentSenOffset_acc += ADC_CURRENT;
+      FLAG_ADC_NewData = FALSE;
+      cnt_RdCurrentSenOffset++;
+      if(cnt_RdCurrentSenOffset >= CURRENTSEN_NUMREADS)
+      {
+        CurrentSenOffset = CurrentSenOffset_acc / CURRENTSEN_NUMREADS;
+        cnt_RdCurrentSenOffset = 0;
+        CurrentSenOffset_acc = 0;
+        LCD_Update |= LCD_Update_Current | LCD_Update_Voltage | LCD_Update_Ireq | LCD_Update_Power;
+        break;
+      }
+    }
+  }
   
   while (1)
   {
@@ -93,77 +124,8 @@ int main(void)
     if(FLAG_10ms)
     {
       RTMS_MeasureTaskStart(RunningTask_10ms);
-      /* Power and current limit check */
       FLAG_10ms = FALSE;
       //DEBUGPIN_TOGGLE;
-      if(FLAG_RdCurrentSenOffset)
-      {
-        if(FLAG_ADC_NewData)
-        {
-          CurrentSenOffset_acc += ADC_CURRENT;
-          FLAG_ADC_NewData = FALSE;
-          cnt_RdCurrentSenOffset++;
-          if(cnt_RdCurrentSenOffset >= 32)
-          {
-            CurrentSenOffset = CurrentSenOffset_acc / 32;
-            cnt_RdCurrentSenOffset = 0;
-            CurrentSenOffset_acc = 0;
-            LCD_Update |= LCD_Update_Current | LCD_Update_Voltage | LCD_Update_Ireq | LCD_Update_Power;
-            FLAG_RdCurrentSenOffset = FALSE;
-          }
-        }
-      }
-      else
-      {
-        if(FLAG_ADC_NewData)
-        {
-          //DEBUGPIN_HIGH;
-          /* Read ADC conversion results */
-          ImA = ADC_CURRENT;
-          UmV = ADC_VOLTAGE;
-          /* Mark ADC data as read so new conversions can be made */
-          FLAG_ADC_NewData = FALSE;
-          
-          if(ImA < CurrentSenOffset) { 
-            ImA = 0;
-          }
-          else {
-            ImA -= CurrentSenOffset;
-          }
-          /* LEM HLSR 40-P/SP33 (40A) -> 11.5mV/A ; ADC LSB (12bit) -> 70.058mA */
-          if(ImA != 0) {
-            ImA *= 70058;
-            ImA /= 1000;
-          }
-          if(ImA != ImA_old) LCD_Update |= LCD_Update_Current;
-          ImA_old = ImA;
-          
-          /* R1 = 4k7, R2 = 47k k=0.09042649727767695, z=11.058705469141996989463 */
-          /* UmV: 0 ... 4095  */
-          /* UmV: 0 ... 36.493728V */
-          if(UmV != 0) {
-            UmV *= 891178;
-            UmV /= 100000;
-          }
-          if(UmV != UmV_old) LCD_Update |= LCD_Update_Voltage;
-          UmV_old = UmV;
-          
-          PowermW = ImA * UmV;
-          PowermW /= 1000;
-          if(PowermW != PowermW_old) LCD_Update |= LCD_Update_Power;
-          PowermW_old = PowermW;
-          
-          /*if(PowermW > POWER_LIMIT) {
-            FLAG_Power_limit = TRUE;
-          }
-          else */
-          {
-            DACdata = CurrentSenOffset + Requested_Current;
-            DAC_SetChannel1Data(DAC_Align_12b_R, DACdata);
-          }
-          //DEBUGPIN_LOW;
-        }
-      }
       RTMS_MeasureTaskEnd(RunningTask_10ms);
     }
     
@@ -171,7 +133,7 @@ int main(void)
     if(BTN_INC_DEB_STATE == BTN_PRESSED && BTN_INC_DELAY_FLAG)
     {
       BTN_INC_DELAY_FLAG = FALSE;
-      if(Requested_Current < U16_MAX) Requested_Current++;
+      if(Requested_Current < U16_MAX) Requested_Current += 500; //500mA steps
       if(Requested_Current != Requested_Current_old) LCD_Update |= LCD_Update_Ireq;
       Requested_Current_old = Requested_Current;
     }
@@ -180,7 +142,7 @@ int main(void)
     if(BTN_DEC_DEB_STATE == BTN_PRESSED && BTN_DEC_DELAY_FLAG)
     {
       BTN_DEC_DELAY_FLAG = FALSE;
-      if(Requested_Current > 0) Requested_Current--;
+      if(Requested_Current >= 500) Requested_Current -= 500;
       if(Requested_Current != Requested_Current_old) LCD_Update |= LCD_Update_Ireq;
       Requested_Current_old = Requested_Current;
     }
@@ -193,7 +155,7 @@ int main(void)
     if(FLAG_100ms)
     {
       RTMS_MeasureTaskStart(RunningTask_100ms);
-      DEBUGPIN_TOGGLE;
+      //DEBUGPIN_TOGGLE;
       StackUsage_CalcMaxUsage();
       if(StackUsage_GetMaxStackUsage() != MaxStackUsage_old) LCD_Update |= LCD_Update_MaxStack;
       MaxStackUsage_old = StackUsage_GetMaxStackUsage();
@@ -208,14 +170,69 @@ int main(void)
       FLAG_1000ms = FALSE;
     }
     
-    if(FLAG_500ms)
+    if(FLAG_PID_500us)
     {
-      FLAG_500ms = FALSE;
-    }
-    
-    if(FLAG_250ms)
-    {
-      FLAG_250ms = FALSE;
+      RTMS_MeasureTaskStart(RunningTask_PID_500us);
+      FLAG_PID_500us = FALSE;
+      if(FLAG_ADC_NewData)
+      {
+        //DEBUGPIN_HIGH;
+        /* Read ADC conversion results */
+        ImA = ADC_CURRENT;
+        UmV = ADC_VOLTAGE;
+        /* Mark ADC data as read so new conversions can be made */
+        FLAG_ADC_NewData = FALSE;
+        
+        if(ImA < CurrentSenOffset) { 
+          ImA = 0;
+        }
+        else {
+          ImA -= CurrentSenOffset;
+        }
+        /* LEM HLSR 40-P/SP33 (40A) -> 11.5mV/A ; ADC LSB (12bit) -> 70.058mA */
+        if(ImA != 0) {
+          ImA *= 70058;
+          ImA /= 1000;
+        }
+        if(ImA != ImA_old) LCD_Update |= LCD_Update_Current;
+        ImA_old = ImA;
+        
+        /* R1 = 4k7, R2 = 47k k=0.09042649727767695, z=11.058705469141996989463 */
+        /* UmV: 0 ... 4095  */
+        /* UmV: 0 ... 36.493728V */
+        if(UmV != 0) {
+          UmV *= 891178;
+          UmV /= 100000;
+        }
+        if(UmV != UmV_old) LCD_Update |= LCD_Update_Voltage;
+        UmV_old = UmV;
+        
+        PowermW = ImA * UmV;
+        PowermW /= 1000;
+        if(PowermW != PowermW_old) LCD_Update |= LCD_Update_Power;
+        PowermW_old = PowermW;
+        
+        PID_Error = Requested_Current - ImA_test;
+        PID_Integral += PID_Error /** 0.0005*/;
+        PID_Derivative = (PID_Error - PID_Error_old) /*/ 0.0005*/;
+        PID_Out_temp = K_P * PID_Error;
+        PID_Error_old = PID_Error;
+        if(PID_Out_temp > 0) {
+          PID_Out = (u16)(PID_Out_temp / 70) + CurrentSenOffset;
+        }
+        else {
+          PID_Out = CurrentSenOffset;
+        }
+        DAC_SetChannel1Data(DAC_Align_12b_R, PID_Out);
+        
+        //DEBUGPIN_LOW;
+      }
+      else
+      {
+        /* no new ADC data available in time, shouold not reach here!!! */
+        __debug = __debug;
+      }
+      RTMS_MeasureTaskEnd(RunningTask_PID_500us);
     }
 
     //LCD_Update = LCD_Update_Current|LCD_Update_Voltage|LCD_Update_Ireq|LCD_Update_Power|LCD_Update_CPU_Load;
@@ -223,7 +240,7 @@ int main(void)
     //DEBUGPIN_HIGH;
     RTMS_MeasureTaskStart(RunningTask_Bkg);
     /* ============== LCD UPDATE CHECK ================= */
-    if(LCD_Update && !FLAG_RdCurrentSenOffset && LCD_UPDATE_LIMIT_FLAG)
+    if(LCD_Update && LCD_UPDATE_LIMIT_FLAG)
     {
       switch(step_Background_Task)
       {

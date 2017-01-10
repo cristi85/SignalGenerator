@@ -35,9 +35,9 @@
 #include "rtms.h"
 
 //ADC measurements
-volatile u16 ADC_Conv_Tab_Avg[ADC_Scan_Channels];
-u32 ADC_Conv_Tab_Avg_Acc[ADC_Scan_Channels];
-volatile u16 ADC_Conv_Tab[ADC_Scan_Channels];
+volatile u16 ADC_Conv_Tab_Avg[ADC_SCAN_CHANNELS];
+u32 ADC_Conv_Tab_Avg_Acc[ADC_SCAN_CHANNELS];
+volatile u16 ADC_Conv_Tab[ADC_SCAN_CHANNELS];
 u8 adc_samp_avg_cnt = 0;
 extern u16 VrefINT_CAL;
 _Bool FLAG_ADC_NewData = FALSE;
@@ -66,6 +66,8 @@ u16 cnt_flag_500ms = 0;
 #define CNTVAL_1000MS (u16)500
 _Bool FLAG_1000ms = FALSE;
 u16 cnt_flag_1000ms = 0;
+
+bool FLAG_PID_500us = FALSE;
 /*================*/
 
 /* Buttons debouncing and repetition delay */
@@ -104,6 +106,7 @@ u16 lcd_update_limit_delay_cnt = 0;
 
 
 /* Public variables */
+static u8 i;
 
 /* External variables */
 extern _Bool Timeout_istout1;
@@ -120,15 +123,15 @@ extern u16 Timeout_tout2;
 void IT_Init()
 {
   u8 i;
-  for(i = 0; i < ADC_Scan_Channels; i++)
+  for(i = 0; i < ADC_SCAN_CHANNELS; i++)
   {
     ADC_Conv_Tab_Avg_Acc[i] = 0;
   }
   adc_samp_avg_cnt = 0;
 }
-void DMA1_Channel1_IRQHandler() /* every 14.5us */
+void DMA1_Channel1_IRQHandler() /* every 75us - TIM15 triggered */
 {
-  u8 i;
+  //DEBUGPIN_TOGGLE;
   RTMS_MeasureIntStart;
   /* DMA1 Channel1 Transfer Complete interrupt handler - DMA has transferred ADC data to ADC_Conv_Tab */
   /* Vref, PA3, PA5 */
@@ -136,17 +139,17 @@ void DMA1_Channel1_IRQHandler() /* every 14.5us */
   if(!FLAG_ADC_NewData)
   {
     /* Duration: 1.35us every  FLAG_ADC_NewData = TRUE */
-    for(i = 0; i < ADC_Scan_Channels; i++)
+    for(i = 0; i < ADC_SCAN_CHANNELS; i++)
     {
       ADC_Conv_Tab_Avg_Acc[i] += ADC_Conv_Tab[i];
     }
     adc_samp_avg_cnt++;
-    if(adc_samp_avg_cnt >= 32)
+    if(adc_samp_avg_cnt >= ADC_AVG_SAMP)
     {
       adc_samp_avg_cnt = 0;
-      for(i = 0; i < ADC_Scan_Channels; i++)
+      for(i = 0; i < ADC_SCAN_CHANNELS; i++)
       { 
-        ADC_Conv_Tab_Avg[i] = ADC_Conv_Tab_Avg_Acc[i] / 32;
+        ADC_Conv_Tab_Avg[i] = ADC_Conv_Tab_Avg_Acc[i] / ADC_AVG_SAMP;
         ADC_Conv_Tab_Avg_Acc[i] = 0;
       }
       //ADC_Conv_Tab_Avg[0] = (u16)((ADC_Conv_Tab_Avg[0] * VrefINT_CAL) / ADC_Conv_Tab_Avg[1]);   //Voltage correction based on Vref
@@ -225,7 +228,7 @@ void SysTick_Handler(void)
 void TIM3_IRQHandler(void)  
 {
   RTMS_MeasureIntStart;
-  if(TIM_GetITStatus(TIM3, TIM_IT_Update))  // Duration 5.5us every 2ms
+  if(TIM3->SR & TIM_IT_Update)  // Duration 5.5us every 2ms
   {
     /* ===== CKECK PERIODIC TASKS FLAGS ===== */
     if(cnt_flag_10ms < U8_MAX) cnt_flag_10ms++;
@@ -388,8 +391,22 @@ void TIM3_IRQHandler(void)
       lcd_update_limit_delay_cnt = 0;
       LCD_UPDATE_LIMIT_FLAG = TRUE;
     }
+    /* Clear the IT pending Bit */
+    TIM3->SR = (u16)~TIM_IT_Update;
+  }
+  RTMS_MeasureIntEnd;
+}
+
+void TIM17_IRQHandler(void)  
+{
+  //DEBUGPIN_TOGGLE;
+  RTMS_MeasureIntStart;
+  if(TIM17->SR & TIM_IT_Update)
+  {
+    FLAG_PID_500us = TRUE;
     
-    TIM_ClearITPendingBit(TIM3, TIM_IT_Update);        // clear TIM1 CC2 interrupt flag
+    /* Clear the IT pending Bit */
+    TIM17->SR = (u16)~TIM_IT_Update;
   }
   RTMS_MeasureIntEnd;
 }
