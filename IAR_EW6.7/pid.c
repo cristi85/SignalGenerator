@@ -19,19 +19,24 @@ PID controller module
 #define INTEGRAL_MIN   (-600)
 #define PID_MAX        (700)
 #define PID_MIN        (0)
-#define PID_OUT_OFFSET (2040)
 
 volatile s32 _P, _I, _D, _pid, _out;
 s32 integral = 0, derivative = 0;
 s32 /*error = 0,*/ error_old = 0;
+u32 current_sensor_offset = 0, _out_zero = 0;
 
-void PID_Init()
+u32 correction = 0;
+bool flag_error_negative = FALSE;
+
+void PID_Init(u32 sen_offset)
 {
   error_old = 0;
   integral = 0;
+  current_sensor_offset = sen_offset;
+  _out_zero = sen_offset - 4; /* substract a small nuber from sensor offset to ensure a zero output command */
 }
 
-u32 PID_Update(s32 error, u32 sen_offset)
+u32 PID_Update(s32 error)
 {
   integral += error;
   derivative = error - error_old;
@@ -47,6 +52,19 @@ u32 PID_Update(s32 error, u32 sen_offset)
   if(_pid > PID_MAX) _pid = PID_MAX;
   else if(_pid < PID_MIN) _pid = PID_MIN;
   error_old = error;
-  _out = (u32)_pid + sen_offset;
+  _out = _out_zero + (u32)_pid;
+  return _out;
+}
+
+u32 PID_Update2(s32 error)
+{
+  flag_error_negative = FALSE;
+  if(error < 0) {
+    flag_error_negative = TRUE;
+    error = -error;
+  }
+  correction = error / 70; // 70 - sensor resolution, for 1 DAC bit change there is a 70mA output current change
+  if(flag_error_negative) _out -= correction;
+  else _out += correction;
   return _out;
 }

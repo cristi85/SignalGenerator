@@ -4,6 +4,8 @@
 #include "board.h"
 #include "types.h"
 
-u32 PID_Update(s32 error, u32 sen_offset);
+void PID_Init(u32 sen_offset);
+u32 PID_Update(s32 error);
+u32 PID_Update2(s32 error);
 
 #endif

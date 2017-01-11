@@ -69,7 +69,6 @@ static u16 Requested_Current = 500, Requested_Current_old = 0;
 bool FLAG_Power_limit = FALSE;
 bool FLAG_Current_limit = FALSE;
 
-
 u32 volatile ImA_test = 0;
 
 /* LEM current sensor offset variables */
@@ -122,7 +121,7 @@ int main(void)
       }
     }
   }
-  
+  PID_Init(CurrentSenOffset);
   while (1)
   {
     /* ============== CYCLIC ENTRIES ================= */
@@ -217,8 +216,8 @@ int main(void)
         if(PowermW != PowermW_old) LCD_Update |= LCD_Update_Power;
         PowermW_old = PowermW;
         
-        DAC_SetChannel1Data(DAC_Align_12b_R, PID_Update(Requested_Current - ImA, CurrentSenOffset));
-        //DAC_SetChannel1Data(DAC_Align_12b_R, (u16)(ImA_test));
+        //DAC_SetChannel1Data(DAC_Align_12b_R, PID_Update2(Requested_Current - ImA));
+        DAC_SetChannel1Data(DAC_Align_12b_R, (u16)(ImA_test));
         //DEBUGPIN_LOW;
       }
       else
