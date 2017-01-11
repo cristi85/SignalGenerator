@@ -9,3 +9,7 @@ Adjust PID so that a desired constant current is drained from source
 
 Adjust PID so that a desired constant power is drained from source
 
+Change LEM sensor to 10A version for better measurement precision
+Put 7x instrumentation differential amplifier after LEM sensor
+Change AO to one with lower offset voltage
+Change power MOSFET with bipolar darlington with high hFE @ 10-15A (driven directly by AO)
