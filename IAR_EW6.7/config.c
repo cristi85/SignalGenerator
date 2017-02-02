@@ -20,6 +20,7 @@ void Config_COMP1(void);
 void Config_DAC_DMA(void);
 void Config_DAC(void);
 void Config_ADC1_DMA(void);
+void Config_I2C();
 
 void Config()
 {
@@ -33,12 +34,37 @@ void Config()
   Config_TIM3();      /* Periodic 2ms interrupt */
   //Config_TIM6();     /* Periodic DAC triggering */
   //Config_TIM14();
-  Config_ADC1_DMA();
-  Config_TIM15();    /* for ADC triggering */
+  //Config_ADC1_DMA();
+  //Config_TIM15();    /* for ADC triggering */
   Config_TIM16();    /* for delay module */
   Config_TIM17();    /* for current/power control PID task triggering */
   //Config_DAC_DMA();
-  Config_DAC();
+  //Config_DAC();
+  Config_I2C();
+}
+
+void Config_I2C()
+{
+  I2C_InitTypeDef I2C_InitStructure;
+  NVIC_InitTypeDef NVIC_InitStructure;
+  
+  RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C2, ENABLE);
+  //RCC_I2CCLKConfig(/*RCC_I2C1CLK_HSI*/RCC_I2C1CLK_SYSCLK);
+  
+  I2C_InitStructure.I2C_Ack = I2C_Ack_Enable;
+  I2C_InitStructure.I2C_AnalogFilter = I2C_AnalogFilter_Enable;
+  I2C_InitStructure.I2C_DigitalFilter = 0;
+  I2C_InitStructure.I2C_Mode = I2C_Mode_I2C;
+  I2C_InitStructure.I2C_OwnAddress1 = 0x00;
+  I2C_InitStructure.I2C_Timing = 0x10805E89;  // Master, Standard Mode 100Khz, 48Mhz input clock, Analog Filter Delay ON, Coefficient of Digital Filter 0, Rise 100ns, Fall 10ns
+  I2C_InitStructure.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit;
+  I2C_Init(I2C2, &I2C_InitStructure);
+  I2C_Cmd(I2C2, ENABLE);
+  
+  NVIC_InitStructure.NVIC_IRQChannel = I2C2_IRQn;
+  NVIC_InitStructure.NVIC_IRQChannelPriority = 0;
+  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+  NVIC_Init(&NVIC_InitStructure);
 }
 
 void Config_GPIO()
@@ -47,6 +73,7 @@ void Config_GPIO()
   /* Enable or disable the AHB peripheral clock */
   RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOA, ENABLE);
   RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOB, ENABLE);
+  RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOF, ENABLE);
   
   /* ANALOG PINS CONFIGURATION */
   
@@ -137,6 +164,16 @@ void Config_GPIO()
   GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
   GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
   GPIO_Init(DEBUGPIN_PORT, &GPIO_InitStructure);
+  
+  /* I2C Pins - I2C2_SCL, I2C2_SDA*/
+  GPIO_InitStructure.GPIO_Pin =  I2C_SDA_PIN | I2C_SCL_PIN;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+  GPIO_InitStructure.GPIO_OType = GPIO_OType_OD;
+  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+  GPIO_Init(I2C_PORT, &GPIO_InitStructure);
+  GPIO_PinAFConfig(I2C_PORT, GPIO_PinSource6, GPIO_AF_1);
+  GPIO_PinAFConfig(I2C_PORT, GPIO_PinSource7, GPIO_AF_1);
   
   LCD_LIGHT_HIGH;
   LCD_RS(0);
@@ -338,7 +375,7 @@ void Config_DAC()
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AN;
   GPIO_Init(GPIOA, &GPIO_InitStructure);*/
   
-  DAC_InitStructure.DAC_OutputBuffer = DAC_OutputBuffer_Enable;
+  DAC_InitStructure.DAC_OutputBuffer = /*DAC_OutputBuffer_Enable*/DAC_OutputBuffer_Disable;
   DAC_InitStructure.DAC_Trigger = DAC_Trigger_None;
   DAC_Init(DAC_Channel_1, &DAC_InitStructure);
   

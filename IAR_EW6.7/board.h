@@ -58,6 +58,11 @@
 //#define PWM_OUT_PORT  GPIOA
 //#define PWM_OUT_PIN   GPIO_Pin_8
 
+// ------ PWM out pin ----------
+#define I2C_PORT      GPIOF
+#define I2C_SDA_PIN   GPIO_Pin_7
+#define I2C_SCL_PIN   GPIO_Pin_6
+
 //---------Button Input Pins-------------
 // BTN1, BTN2, BTN3, BTN4 - digital INPUT
 #define BTN_PORT       GPIOB

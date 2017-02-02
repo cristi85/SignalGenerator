@@ -11,7 +11,7 @@
 #include "string.h"
 #include "rtms.h"
 #include "stackusage.h" 
-#include "pid.h"
+#include "ADS1112.h"
 
 typedef enum
 {
@@ -49,6 +49,7 @@ u16 VrefINT_CAL;
 u16 CpuLoad_old = 0;
 u8  MaxStackUsage_old = 0;
 u8 volatile __debug;
+u8 volatile mode = 0;
 
 /* LCD MACROS and variables */
 #define LCD_CLEAR_ROW     "                "
@@ -69,7 +70,14 @@ static u16 Requested_Current = 500, Requested_Current_old = 0;
 bool FLAG_Power_limit = FALSE;
 bool FLAG_Current_limit = FALSE;
 
-u32 volatile ImA_test = 0;
+#define AMP_MEASUREMENT  (u8)0
+#define VOLT_MEASUREMENT (u8)1
+static s16 sample = 0;   //signed sample from ADC
+static u8 ADCNewSample;
+static u8 ADS1112_channel = 0;
+const u8 CH1_Offset = 86;   //amperage measurement channel
+const u8 CH2_Offset = 71;   //voltage measurement channel
+static u8 PGA = 1, PGAold = 1;
 
 /* LEM current sensor offset variables */
 #define CURRENTSEN_NUMREADS (u8)32
@@ -79,10 +87,11 @@ u8 cnt_discardADC;
 
 int main(void)
 {
+  volatile u8 status = 0xFF;
+  volatile u8 cfg[8] = {1,2,3,4,5,6,7,8};
   VrefINT_CAL = *ptr_VREFINT_CAL;
   StackUsage_Init();
   Config();
-  DAC_SetChannel1Data(DAC_Align_12b_R, 0);
   Errors_Init();
   
   SystemCoreClockUpdate();
@@ -90,38 +99,18 @@ int main(void)
   while(!LCD_Initialize());
   while(!LCD_Clear());
   while(!LCD_Home());
-  while(!LCD_WriteString("Calibrating..."));
+  LCD_Update |= LCD_Update_Current;
+  LCD_Update |= LCD_Update_Voltage;
   
-  /* Discard first 10 ADC values */
-  cnt_discardADC = 0;
-  while(cnt_discardADC < 10)
-  {
-    if(FLAG_ADC_NewData) {
-      cnt_discardADC++;
-      FLAG_ADC_NewData = FALSE;
-    }
+  ADS1112_Init();
+  ADS1112_TriggerConversion();
+  if(Errors_CheckError(ERROR_ADS1112))
+  { 
+    while(!LCD_Clear());
+    while(!LCD_Home());
+    while(!LCD_WriteString("ADS1112 Error!"));
   }
   
-  /* LEM current sensor read 0 current output */
-  cnt_RdCurrentSenOffset = 0;
-  while(1)
-  {
-    if(FLAG_ADC_NewData)
-    {
-      CurrentSenOffset_acc += ADC_CURRENT;
-      FLAG_ADC_NewData = FALSE;
-      cnt_RdCurrentSenOffset++;
-      if(cnt_RdCurrentSenOffset >= CURRENTSEN_NUMREADS)
-      {
-        CurrentSenOffset = CurrentSenOffset_acc / CURRENTSEN_NUMREADS;
-        cnt_RdCurrentSenOffset = 0;
-        CurrentSenOffset_acc = 0;
-        LCD_Update |= LCD_Update_Current | LCD_Update_Voltage | LCD_Update_Ireq | LCD_Update_Power;
-        break;
-      }
-    }
-  }
-  PID_Init(CurrentSenOffset);
   while (1)
   {
     /* ============== CYCLIC ENTRIES ================= */
@@ -164,6 +153,57 @@ int main(void)
       if(StackUsage_GetMaxStackUsage() != MaxStackUsage_old) LCD_Update |= LCD_Update_MaxStack;
       MaxStackUsage_old = StackUsage_GetMaxStackUsage();
       FLAG_100ms = FALSE;
+      
+      ADS1112_GetSample(&sample, &ADCNewSample);
+      if(!Errors_CheckError(ERROR_ADS1112))
+      {
+        if(ADCNewSample == 1)
+        {
+          //change ADC conversion channel
+          if(ADS1112_channel == AMP_MEASUREMENT)
+          {
+            ADS1112_channel = VOLT_MEASUREMENT;
+            ADS1112_SetMeasurementChannel(ADS1112_channel, 1);  //Gain is always 1 for voltage measurement
+          }
+          else if(ADS1112_channel == VOLT_MEASUREMENT)
+          {
+            ADS1112_channel = AMP_MEASUREMENT;
+            ADS1112_SetMeasurementChannel(ADS1112_channel, PGA);
+          }
+          //if conversion was done and new data is available
+          switch(ADS1112_channel)
+          {
+          case VOLT_MEASUREMENT:  //if ADS1112_channel == VOLT_MEASUREMENT means that we have an amperage sample read from the ADC
+            {
+              sample -= CH1_Offset;    //offset compensation
+              //Calculate amperage value and display strings based on PGA value
+              //Calc_amp_disp_str();
+              
+              //Autoscale amperage input based on shunt voltage
+              //Autoscale_amp_input();
+              
+              break;
+            }
+          case AMP_MEASUREMENT:   //if ADS1112_channel == AMP_MEASUREMENT means that we have a voltage sample read from the ADC
+            {
+              sample -= CH2_Offset;    //offset compensation
+              //Calculate and display measured voltage
+              //Calc_volt_disp_str();
+              
+              //Calculate and display dissipated power
+              //Calc_pwr_disp_str();
+              
+              //Update display
+              //(Runtime=12.73ms)
+              //LCD_Home();
+              //LCD_WriteString(lcd_row1);
+              //LCD_WriteString(lcd_row2);
+              break;
+            }
+          default: break;        
+          }
+        }
+      }
       RTMS_MeasureTaskEnd(RunningTask_100ms);
     }
     if(FLAG_1000ms)
@@ -182,29 +222,29 @@ int main(void)
       {
         //DEBUGPIN_HIGH;
         /* Read ADC conversion results */
-        ImA = ADC_CURRENT;
-        UmV = ADC_VOLTAGE;
+        ImA = /*ADC_CURRENT*/0;
+        UmV = /*ADC_VOLTAGE*/0;
         /* Mark ADC data as read so new conversions can be made */
         FLAG_ADC_NewData = FALSE;
         
-        if(ImA < CurrentSenOffset) { 
+        /*if(ImA < CurrentSenOffset) { 
           ImA = 0;
         }
         else {
           ImA -= CurrentSenOffset;
-        }
+        }*/
         /* LEM HLSR 40-P/SP33 (40A) -> 11.5mV/A ; ADC LSB (12bit) -> 70.058mA */
-        if(ImA != 0) {
+        /*if(ImA != 0) {
           ImA *= 70058;
           ImA /= 1000;
         }
         if(ImA != ImA_old) LCD_Update |= LCD_Update_Current;
         ImA_old = ImA;
-        
+        */
         /* R1 = 4k7, R2 = 47k k=0.09042649727767695, z=11.058705469141996989463 */
         /* UmV: 0 ... 4095  */
         /* UmV: 0 ... 36.493728V */
-        if(UmV != 0) {
+        /*if(UmV != 0) {
           UmV *= 891178;
           UmV /= 100000;
         }
@@ -215,14 +255,18 @@ int main(void)
         PowermW /= 1000;
         if(PowermW != PowermW_old) LCD_Update |= LCD_Update_Power;
         PowermW_old = PowermW;
-        
-        //DAC_SetChannel1Data(DAC_Align_12b_R, PID_Update2(Requested_Current - ImA));
-        DAC_SetChannel1Data(DAC_Align_12b_R, (u16)(ImA_test));
+        */
+        /*if(mode == 0) {
+          DAC_SetChannel1Data(DAC_Align_12b_R, PID_Update2(Requested_Current - ImA));
+        }
+        else {
+          DAC_SetChannel1Data(DAC_Align_12b_R, (u16)(ImA_test)); 
+        }*/
         //DEBUGPIN_LOW;
       }
       else
       {
-        /* no new ADC data available in time, shouold not reach here!!! */
+        /* no new ADC data available in time, shoould not reach here!!! */
         __debug = __debug;
       }
       RTMS_MeasureTaskEnd(RunningTask_PID_500us);

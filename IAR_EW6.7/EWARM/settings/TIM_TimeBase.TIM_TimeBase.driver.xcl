@@ -6,11 +6,11 @@
 
 "-p" 
 
-"D:\IAR Systems\Embedded Workbench 7.5\arm\CONFIG\debugger\ST\STM32F051R6.ddf" 
+"D:\IAR Systems\Embedded Workbench 7.5\arm\CONFIG\debugger\ST\STM32F051C6.ddf" 
 
 "--semihosting" 
 
-"--device=STM32F051R6" 
+"--device=STM32F051C6" 
 
 "--drv_interface=SWD" 
 

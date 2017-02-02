@@ -89,7 +89,7 @@
         </option>
         <option>
           <name>OGChipSelectEditMenu</name>
-          <state>STM32F051R6	ST STM32F051R6</state>
+          <state>STM32F051C6	ST STM32F051C6</state>
         </option>
         <option>
           <name>GenLowLevelInterface</name>
@@ -149,7 +149,7 @@
         </option>
         <option>
           <name>GFPUDeviceSlave</name>
-          <state>STM32F051R6	ST STM32F051R6</state>
+          <state>STM32F051C6	ST STM32F051C6</state>
         </option>
         <option>
           <name>FPU2</name>
@@ -320,6 +320,7 @@
           <state>$PROJ_DIR$\..\Libraries\CMSIS\ST\STM32F0xx\Include</state>
           <state>$PROJ_DIR$\..\Libraries\STM32F0xx_StdPeriph_Driver\inc</state>
           <state>$PROJ_DIR$\..\Utilities\STM32F0-Discovery</state>
+          <state>D:\Work\Bitbucket\ProgrammableLoad_SW\IAR_EW6.7\Libraries\CMSIS\Device\ST\STM32F0xx\Include</state>
         </option>
         <option>
           <name>CCStdIncCheck</name>
@@ -969,7 +970,7 @@
   <group>
     <name>EWARM</name>
     <file>
-      <name>$PROJ_DIR$\..\Libraries\CMSIS\ST\STM32F0xx\Source\Templates\iar\startup_stm32f0xx.s</name>
+      <name>$PROJ_DIR$\..\Libraries\CMSIS\Device\ST\STM32F0xx\Source\Templates\iar\startup_stm32f051.s</name>
     </file>
   </group>
   <group>
@@ -999,6 +1000,9 @@
       <name>$PROJ_DIR$\..\Libraries\STM32F0xx_StdPeriph_Driver\src\stm32f0xx_gpio.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\Libraries\STM32F0xx_StdPeriph_Driver\src\stm32f0xx_i2c.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\Libraries\STM32F0xx_StdPeriph_Driver\src\stm32f0xx_misc.c</name>
     </file>
     <file>
@@ -1020,6 +1024,18 @@
   <group>
     <name>User</name>
     <file>
+      <name>$PROJ_DIR$\..\ADS1112.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\ADS1112.h</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\ADS1112_cfg.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\ADS1112_cfg.h</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\board.h</name>
     </file>
     <file>
@@ -1038,6 +1054,9 @@
       <name>$PROJ_DIR$\..\errors.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\errors.h</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\HD44780.c</name>
     </file>
     <file>
@@ -1045,12 +1064,6 @@
     </file>
     <file>
       <name>$PROJ_DIR$\..\main.c</name>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\..\pid.c</name>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\..\pid.h</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\rtms.c</name>

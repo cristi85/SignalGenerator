@@ -3,9 +3,10 @@
 
 #include "types.h"
 
-#define ERROR_ADC_INIT               (u8)0
+#define ERROR_ADC_INIT   (u8)0
+#define ERROR_ADS1112    (u8)1
 
-#define ERRORS (u8)ERROR_ADC_INIT + 1
+#define ERRORS (u8)ERROR_ADS1112 + 1
 
 void Errors_Init(void);
 void Errors_SetError(u8);

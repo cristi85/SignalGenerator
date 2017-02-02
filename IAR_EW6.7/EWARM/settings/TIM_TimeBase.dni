@@ -1,5 +1,5 @@
 [DebugChecksum]
-Checksum=1541251591
+Checksum=56568514
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -112,6 +112,7 @@ Fmt26={W}1:StackAddresBottom	4	0
 Fmt27={W}1:StackAddressTop	4	0
 Fmt28={W}1:__ICFEDIT_size_cstack__	4	0
 Fmt29={W}1:current_SP	4	0
+Fmt30={W}1:mode	3	0
 [Log file]
 LoggingEnabled=_ 0
 LogFile=_ ""
@@ -126,7 +127,8 @@ ShowTiming=1
 [Disassemble mode]
 mode=0
 [Breakpoints2]
-Count=0
+Bp0=_ 1 "EMUL_CODE" "{$PROJ_DIR$\..\stm32f0xx_it.c}.423.3" 0 0 1 "" 0 "" 0
+Count=1
 [Aliases]
 Count=0
 SuppressDialog=0

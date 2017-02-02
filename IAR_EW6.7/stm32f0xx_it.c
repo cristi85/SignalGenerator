@@ -131,14 +131,14 @@ void IT_Init()
 }
 void DMA1_Channel1_IRQHandler() /* every 75us - TIM15 triggered */
 {
-  //DEBUGPIN_TOGGLE;
-  RTMS_MeasureIntStart;
-  /* DMA1 Channel1 Transfer Complete interrupt handler - DMA has transferred ADC data to ADC_Conv_Tab */
-  /* Vref, PA3, PA5 */
-  /* Vref, U, I */
-  if(!FLAG_ADC_NewData)
+  // DEBUGPIN_TOGGLE;
+  // RTMS_MeasureIntStart;
+  // DMA1 Channel1 Transfer Complete interrupt handler - DMA has transferred ADC data to ADC_Conv_Tab
+  // Vref, PA3, PA5
+  // Vref, U, I
+  /*if(!FLAG_ADC_NewData)
   {
-    /* Duration: 1.35us every  FLAG_ADC_NewData = TRUE */
+    // Duration: 1.35us every  FLAG_ADC_NewData = TRUE
     for(i = 0; i < ADC_SCAN_CHANNELS; i++)
     {
       ADC_Conv_Tab_Avg_Acc[i] += ADC_Conv_Tab[i];
@@ -158,7 +158,7 @@ void DMA1_Channel1_IRQHandler() /* every 75us - TIM15 triggered */
     }
   }
   DMA1->IFCR = DMA1_IT_TC1;
-  RTMS_MeasureIntEnd;
+  RTMS_MeasureIntEnd;*/
 }
 void TIM2_IRQHandler(void)
 {
@@ -410,6 +410,50 @@ void TIM17_IRQHandler(void)
     TIM17->SR = (u16)~TIM_IT_Update;
   }
   RTMS_MeasureIntEnd;
+}
+
+/**
+  * @brief  This function handles I2C1 Error interrupt request.
+  * @param  None
+  * @retval None
+  */
+void I2C2_IRQHandler(void)
+{
+  /* Check on I2C1 SMBALERT flag and clear it */
+  if (I2C_GetITStatus(I2C2, I2C_IT_ALERT))
+  {
+    I2C_ClearITPendingBit(I2C2, I2C_IT_ALERT);
+  }
+  /* Check on I2C1 Time out flag and clear it */
+  if (I2C_GetITStatus(I2C2, I2C_IT_TIMEOUT))
+  {
+    I2C_ClearITPendingBit(I2C2, I2C_IT_TIMEOUT);
+  }
+  /* Check on I2C1 Arbitration Lost flag and clear it */
+  if (I2C_GetITStatus(I2C2, I2C_IT_ARLO))
+  {
+    I2C_ClearITPendingBit(I2C2, I2C_IT_ARLO);
+  }   
+  /* Check on I2C1 PEC error flag and clear it */
+  if (I2C_GetITStatus(I2C2, I2C_IT_PECERR))
+  {
+    I2C_ClearITPendingBit(I2C2, I2C_IT_PECERR);
+  } 
+  /* Check on I2C2 Overrun/Underrun error flag and clear it */
+  if (I2C_GetITStatus(I2C2, I2C_IT_OVR))
+  {
+    I2C_ClearITPendingBit(I2C2, I2C_IT_OVR);
+  } 
+  /* Check on I2C1 Acknowledge failure error flag and clear it */
+  if (I2C_GetITStatus(I2C2, I2C_IT_NACKF))
+  {
+    I2C_ClearITPendingBit(I2C2, I2C_IT_NACKF);
+  }
+  /* Check on I2C1 Bus error flag and clear it */
+  if (I2C_GetITStatus(I2C2, I2C_IT_BERR))
+  {
+    I2C_ClearITPendingBit(I2C2, I2C_IT_BERR);
+  }   
 }
 
 void USART1_IRQHandler(void)

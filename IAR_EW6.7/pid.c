@@ -58,13 +58,7 @@ u32 PID_Update(s32 error)
 
 u32 PID_Update2(s32 error)
 {
-  flag_error_negative = FALSE;
-  if(error < 0) {
-    flag_error_negative = TRUE;
-    error = -error;
-  }
-  correction = error / 70; // 70 - sensor resolution, for 1 DAC bit change there is a 70mA output current change
-  if(flag_error_negative) _out -= correction;
-  else _out += correction;
+  if(error > 0) _out++;
+  else if(error < 0) _out--;
   return _out;
 }
