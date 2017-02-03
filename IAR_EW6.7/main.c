@@ -70,14 +70,14 @@ static u16 Requested_Current = 500, Requested_Current_old = 0;
 bool FLAG_Power_limit = FALSE;
 bool FLAG_Current_limit = FALSE;
 
-#define AMP_MEASUREMENT  (u8)0
-#define VOLT_MEASUREMENT (u8)1
+#define VOLT_MEASUREMENT (u8)0
+#define AMP_MEASUREMENT  (u8)1
 static s16 sample = 0;   //signed sample from ADC
 static u8 ADCNewSample;
-static u8 ADS1112_channel = 0;
-const u8 CH1_Offset = 86;   //amperage measurement channel
-const u8 CH2_Offset = 71;   //voltage measurement channel
-static u8 PGA = 1, PGAold = 1;
+static u8 ADS1112_channel = VOLT_MEASUREMENT;
+const u8 AMP_Offset = 155;   //amperage measurement channel
+const u8 VOLT_Offset = 40;   //voltage measurement channel
+static u8 pga = 8, pga_old = 1;
 
 /* LEM current sensor offset variables */
 #define CURRENTSEN_NUMREADS (u8)32
@@ -103,7 +103,8 @@ int main(void)
   LCD_Update |= LCD_Update_Voltage;
   
   ADS1112_Init();
-  ADS1112_TriggerConversion();
+  //ADS1112_TriggerConversion();
+  ADS1112_SetMeasurementChannel(ADS1112_channel, 1);
   if(Errors_CheckError(ERROR_ADS1112))
   { 
     while(!LCD_Clear());
@@ -159,45 +160,61 @@ int main(void)
       {
         if(ADCNewSample == 1)
         {
-          //change ADC conversion channel
-          if(ADS1112_channel == AMP_MEASUREMENT)
-          {
-            ADS1112_channel = VOLT_MEASUREMENT;
-            ADS1112_SetMeasurementChannel(ADS1112_channel, 1);  //Gain is always 1 for voltage measurement
-          }
-          else if(ADS1112_channel == VOLT_MEASUREMENT)
-          {
-            ADS1112_channel = AMP_MEASUREMENT;
-            ADS1112_SetMeasurementChannel(ADS1112_channel, PGA);
-          }
           //if conversion was done and new data is available
           switch(ADS1112_channel)
           {
           case VOLT_MEASUREMENT:  //if ADS1112_channel == VOLT_MEASUREMENT means that we have an amperage sample read from the ADC
             {
-              sample -= CH1_Offset;    //offset compensation
-              //Calculate amperage value and display strings based on PGA value
-              //Calc_amp_disp_str();
+              //sample -= CH1_Offset;    //offset compensation
+              ADS1112_channel = AMP_MEASUREMENT;
+              ADS1112_SetMeasurementChannel(ADS1112_channel, pga);
+              sample -= VOLT_Offset;
+              if(sample < 0) sample = 0;
               
-              //Autoscale amperage input based on shunt voltage
-              //Autoscale_amp_input();
-              
+              UmV = (u32)((u32)97664 * (u32)sample);
+              UmV /= (u32)100000;
+              if(UmV != UmV_old) LCD_Update |= LCD_Update_Voltage;
+              UmV_old = UmV;
               break;
             }
           case AMP_MEASUREMENT:   //if ADS1112_channel == AMP_MEASUREMENT means that we have a voltage sample read from the ADC
             {
-              sample -= CH2_Offset;    //offset compensation
-              //Calculate and display measured voltage
-              //Calc_volt_disp_str();
+              //sample -= CH2_Offset;    //offset compensation
+              ADS1112_channel = VOLT_MEASUREMENT;
+              ADS1112_SetMeasurementChannel(ADS1112_channel, 1);  //Gain is always 1 for voltage measurement
+              sample -= AMP_Offset;
+              if(sample < 0) sample = 0;
               
-              //Calculate and display dissipated power
-              //Calc_pwr_disp_str();
+              switch(pga)
+              {
+              case 1:
+                {
+                  ImA = (u32)((u32)54349 * (u32)sample);
+                  ImA /= (u32)10000; 
+                  break;
+                }
+              case 2:
+                {
+                  ImA = (u32)((u32)27175 * (u32)sample);
+                  ImA /= (u32)10000; 
+                  break;
+                }
+              case 4:
+                {
+                  ImA = (u32)((u32)13587 * (u32)sample);
+                  ImA /= (u32)10000; 
+                  break;
+                }
+              case 8:
+                {
+                  ImA = (u32)((u32)67937 * (u32)sample);
+                  ImA /= (u32)100000; 
+                  break;
+                }
+              }
               
-              //Update display
-              //(Runtime=12.73ms)
-              //LCD_Home();
-              //LCD_WriteString(lcd_row1);
-              //LCD_WriteString(lcd_row2);
+              if(ImA != ImA_old) LCD_Update |= LCD_Update_Current;
+              ImA_old = ImA;
               break;
             }
           default: break;        
