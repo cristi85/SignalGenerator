@@ -30,11 +30,11 @@ bool flag_LCD_Update_row1 = FALSE;
 bool flag_LCD_Update_row2 = FALSE;
 static u8 step_Background_Task = 0;
 
-void Convert2String_Current(u32 ImA);
-void Convert2String_Voltage(u32 UmV);
+void Convert2String_Current(s32 ImA);
+void Convert2String_Voltage(s32 UmV);
 void Convert2String_Ireq(u16 Requested_Current);
 void Convert2String_Cal(u32 CurrentSenOffset);
-void Convert2String_Power(u32 PowermW);
+void Convert2String_Power(s32 pPowermW);
 void Convert2String_CPUload(u16 pcpuload);
 void Convert2String_MaxStack(u8 pMaxStack);
 
@@ -60,15 +60,12 @@ static char lcd_row2[17] = LCD_CLEAR_ROW;
 
 #define POWER_LIMIT   (u32)30000  /* mili Watts */
 #define CURRENT_LIMIT (u32)5000   /* mili Amps */
-static u32 UmV = 0; 
-static u32 UmV_old = 0;
-static u32 ImA = 0;
-static u32 ImA_old = 0;
-static u32 PowermW = 0;
-static u32 PowermW_old = 0;
-static u16 Requested_Current = 500, Requested_Current_old = 0;
-bool FLAG_Power_limit = FALSE;
-bool FLAG_Current_limit = FALSE;
+static s32 UmV = 0; 
+static s32 UmV_old = 0;
+static s32 ImA = 0;
+static s32 ImA_old = 0;
+static s32 PowermW = 0;
+static s32 PowermW_old = 0;
 
 #define VOLT_MEASUREMENT (u8)0
 #define AMP_MEASUREMENT  (u8)1
@@ -77,7 +74,9 @@ static u8 ADCNewSample;
 static u8 ADS1112_channel = VOLT_MEASUREMENT;
 const u8 AMP_Offset = 155;   //amperage measurement channel
 const u8 VOLT_Offset = 40;   //voltage measurement channel
-static u8 pga = 8, pga_old = 1;
+static u8 pga = 8;
+static u32 temp_u32 = 0;
+static bool flag_negative = FALSE; 
 
 /* LEM current sensor offset variables */
 #define CURRENTSEN_NUMREADS (u8)32
@@ -127,18 +126,12 @@ int main(void)
     if(BTN_INC_DEB_STATE == BTN_PRESSED && BTN_INC_DELAY_FLAG)
     {
       BTN_INC_DELAY_FLAG = FALSE;
-      if(Requested_Current < U16_MAX) Requested_Current += 500; //500mA steps
-      if(Requested_Current != Requested_Current_old) LCD_Update |= LCD_Update_Ireq;
-      Requested_Current_old = Requested_Current;
     }
     
     /* ============== PRESS BTN DEC ================= */
     if(BTN_DEC_DEB_STATE == BTN_PRESSED && BTN_DEC_DELAY_FLAG)
     {
       BTN_DEC_DELAY_FLAG = FALSE;
-      if(Requested_Current >= 500) Requested_Current -= 500;
-      if(Requested_Current != Requested_Current_old) LCD_Update |= LCD_Update_Ireq;
-      Requested_Current_old = Requested_Current;
     }
     
     /* ============== PRESS BTN MODE ================= */
@@ -151,8 +144,8 @@ int main(void)
       RTMS_MeasureTaskStart(RunningTask_100ms);
       //DEBUGPIN_TOGGLE;
       StackUsage_CalcMaxUsage();
-      if(StackUsage_GetMaxStackUsage() != MaxStackUsage_old) LCD_Update |= LCD_Update_MaxStack;
-      MaxStackUsage_old = StackUsage_GetMaxStackUsage();
+      /*if(StackUsage_GetMaxStackUsage() != MaxStackUsage_old) LCD_Update |= LCD_Update_MaxStack;
+      MaxStackUsage_old = StackUsage_GetMaxStackUsage();*/
       FLAG_100ms = FALSE;
       
       ADS1112_GetSample(&sample, &ADCNewSample);
@@ -165,56 +158,96 @@ int main(void)
           {
           case VOLT_MEASUREMENT:  //if ADS1112_channel == VOLT_MEASUREMENT means that we have an amperage sample read from the ADC
             {
-              //sample -= CH1_Offset;    //offset compensation
               ADS1112_channel = AMP_MEASUREMENT;
               ADS1112_SetMeasurementChannel(ADS1112_channel, pga);
-              sample -= VOLT_Offset;
-              if(sample < 0) sample = 0;
               
-              UmV = (u32)((u32)97664 * (u32)sample);
-              UmV /= (u32)100000;
+              sample -= VOLT_Offset;
+              flag_negative = FALSE;
+              if(sample < 0) {
+                sample = -sample;
+                flag_negative = TRUE;
+              }
+              temp_u32 = (u32)((u32)97506 * (u32)sample);
+              temp_u32 /= (u32)100000;
+              
+              if(flag_negative) {
+                UmV = (u32)temp_u32;
+                UmV = -UmV;
+              }
+              else {
+                UmV = (u32)temp_u32;
+              }
+              
               if(UmV != UmV_old) LCD_Update |= LCD_Update_Voltage;
               UmV_old = UmV;
               break;
             }
           case AMP_MEASUREMENT:   //if ADS1112_channel == AMP_MEASUREMENT means that we have a voltage sample read from the ADC
             {
-              //sample -= CH2_Offset;    //offset compensation
-              ADS1112_channel = VOLT_MEASUREMENT;
-              ADS1112_SetMeasurementChannel(ADS1112_channel, 1);  //Gain is always 1 for voltage measurement
               sample -= AMP_Offset;
-              if(sample < 0) sample = 0;
+              flag_negative = FALSE;
+              if(sample < 0) {
+                sample = -sample;
+                flag_negative = TRUE;
+              }
               
               switch(pga)
               {
               case 1:
                 {
-                  ImA = (u32)((u32)54349 * (u32)sample);
-                  ImA /= (u32)10000; 
+                  temp_u32 = (u32)((u32)54349 * (u32)sample);
+                  temp_u32 /= (u32)10000; 
                   break;
                 }
               case 2:
                 {
-                  ImA = (u32)((u32)27175 * (u32)sample);
-                  ImA /= (u32)10000; 
+                  temp_u32 = (u32)((u32)27175 * (u32)sample);
+                  temp_u32 /= (u32)10000; 
                   break;
                 }
               case 4:
                 {
-                  ImA = (u32)((u32)13587 * (u32)sample);
-                  ImA /= (u32)10000; 
+                  temp_u32 = (u32)((u32)13587 * (u32)sample);
+                  temp_u32 /= (u32)10000; 
                   break;
                 }
               case 8:
                 {
-                  ImA = (u32)((u32)67937 * (u32)sample);
-                  ImA /= (u32)100000; 
+                  temp_u32 = (u32)((u32)67937 * (u32)sample);
+                  temp_u32 /= (u32)100000; 
                   break;
                 }
               }
               
+              if(flag_negative) {
+                ImA = (u32)temp_u32;
+                ImA = -ImA;
+              }
+              else {
+                ImA = (u32)temp_u32;
+              }
+              
+              /* Update LCD if needed */
               if(ImA != ImA_old) LCD_Update |= LCD_Update_Current;
               ImA_old = ImA;
+              
+              PowermW = UmV * ImA;
+              PowermW /= 1000;
+              
+              if(PowermW != PowermW_old) LCD_Update |= LCD_Update_Power;
+              PowermW_old = PowermW;
+              
+              /* ADS1112 PGA adjustment */
+              temp_u32 = (u32)((u32)(sample+AMP_Offset) * (u32)((u16)2048/pga)) / (u16)0x7FFF;
+              if(temp_u32 < 256)        pga = 8;
+              else if(temp_u32 < 512)   pga = 4;
+              else if(temp_u32 < 1024)  pga = 2;
+              else if(temp_u32 <= 2048) pga = 1;
+              
+              /* Start ADC measurement on the other channel */
+              ADS1112_channel = VOLT_MEASUREMENT;
+              ADS1112_SetMeasurementChannel(ADS1112_channel, 1);  //Gain is always 1 for voltage measurement
+              
               break;
             }
           default: break;        
@@ -226,8 +259,8 @@ int main(void)
     if(FLAG_1000ms)
     {
       RTMS_CpuLoadCalculation();
-      if(RTMS_GetCpuLoadCurrent() != CpuLoad_old) LCD_Update |= LCD_Update_CPU_Load;
-      CpuLoad_old = RTMS_GetCpuLoadCurrent();
+      /*if(RTMS_GetCpuLoadCurrent() != CpuLoad_old) LCD_Update |= LCD_Update_CPU_Load;
+      CpuLoad_old = RTMS_GetCpuLoadCurrent();*/
       FLAG_1000ms = FALSE;
     }
     
@@ -238,47 +271,8 @@ int main(void)
       if(FLAG_ADC_NewData)
       {
         //DEBUGPIN_HIGH;
-        /* Read ADC conversion results */
-        ImA = /*ADC_CURRENT*/0;
-        UmV = /*ADC_VOLTAGE*/0;
         /* Mark ADC data as read so new conversions can be made */
         FLAG_ADC_NewData = FALSE;
-        
-        /*if(ImA < CurrentSenOffset) { 
-          ImA = 0;
-        }
-        else {
-          ImA -= CurrentSenOffset;
-        }*/
-        /* LEM HLSR 40-P/SP33 (40A) -> 11.5mV/A ; ADC LSB (12bit) -> 70.058mA */
-        /*if(ImA != 0) {
-          ImA *= 70058;
-          ImA /= 1000;
-        }
-        if(ImA != ImA_old) LCD_Update |= LCD_Update_Current;
-        ImA_old = ImA;
-        */
-        /* R1 = 4k7, R2 = 47k k=0.09042649727767695, z=11.058705469141996989463 */
-        /* UmV: 0 ... 4095  */
-        /* UmV: 0 ... 36.493728V */
-        /*if(UmV != 0) {
-          UmV *= 891178;
-          UmV /= 100000;
-        }
-        if(UmV != UmV_old) LCD_Update |= LCD_Update_Voltage;
-        UmV_old = UmV;
-        
-        PowermW = ImA * UmV;
-        PowermW /= 1000;
-        if(PowermW != PowermW_old) LCD_Update |= LCD_Update_Power;
-        PowermW_old = PowermW;
-        */
-        /*if(mode == 0) {
-          DAC_SetChannel1Data(DAC_Align_12b_R, PID_Update2(Requested_Current - ImA));
-        }
-        else {
-          DAC_SetChannel1Data(DAC_Align_12b_R, (u16)(ImA_test)); 
-        }*/
         //DEBUGPIN_LOW;
       }
       else
@@ -323,21 +317,21 @@ int main(void)
             Convert2String_Ireq(Requested_Current);
             flag_LCD_Update_row2 = TRUE;
           }*/
-          if(LCD_Update & LCD_Update_Cal) {
+          /*if(LCD_Update & LCD_Update_Cal) {
             Convert2String_Cal(CurrentSenOffset);
-          }
-          /*if(LCD_Update & LCD_Update_Power) {
+          }*/
+          if(LCD_Update & LCD_Update_Power) {
             Convert2String_Power(PowermW);
             flag_LCD_Update_row2 = TRUE;
-          }*/
-          if(LCD_Update & LCD_Update_MaxStack) {
+          }
+          /*if(LCD_Update & LCD_Update_MaxStack) {
             Convert2String_MaxStack(StackUsage_GetMaxStackUsage());
             flag_LCD_Update_row2 = TRUE;
-          }
-          if(LCD_Update & LCD_Update_CPU_Load) {
+          }*/
+          /*if(LCD_Update & LCD_Update_CPU_Load) {
             Convert2String_CPUload(RTMS_GetCpuLoadCurrent());
             flag_LCD_Update_row2 = TRUE;
-          }
+          }*/
           step_Background_Task++;
           break;
         }
@@ -366,7 +360,7 @@ int main(void)
   }
 }
 
-void Convert2String_Current(u32 pImA)
+void Convert2String_Current(s32 pImA)
 {
   /* Row1 left */
   #define ROW_OFFSET_CURRENT (u8)0
@@ -374,44 +368,61 @@ void Convert2String_Current(u32 pImA)
   u32 temp_ImA = pImA;
   u8 last_digit;
   
+  if(pImA < 0) {
+    pImA = -pImA;
+    ROW_USED_CURRENT[0+ROW_OFFSET_CURRENT] = (u8)('-');
+  }
+  else {
+    ROW_USED_CURRENT[0+ROW_OFFSET_CURRENT] = (u8)(' ');
+  }
+  temp_ImA = (u32)pImA;
+  
   last_digit = temp_ImA % 10;
   temp_ImA /= 10;
   if(last_digit % 10 >= 5) {
     temp_ImA++;
   }
   
+  ROW_USED_CURRENT[5+ROW_OFFSET_CURRENT] = (u8)(temp_ImA % 10) + 48;
+  temp_ImA /= 10;
   ROW_USED_CURRENT[4+ROW_OFFSET_CURRENT] = (u8)(temp_ImA % 10) + 48;
   temp_ImA /= 10;
-  ROW_USED_CURRENT[3+ROW_OFFSET_CURRENT] = (u8)(temp_ImA % 10) + 48;
+  ROW_USED_CURRENT[2+ROW_OFFSET_CURRENT] = (u8)(temp_ImA % 10) + 48;
   temp_ImA /= 10;
   ROW_USED_CURRENT[1+ROW_OFFSET_CURRENT] = (u8)(temp_ImA % 10) + 48;
-  temp_ImA /= 10;
-  ROW_USED_CURRENT[0+ROW_OFFSET_CURRENT] = (u8)(temp_ImA % 10) + 48;
-  ROW_USED_CURRENT[2+ROW_OFFSET_CURRENT] = '.';
+  ROW_USED_CURRENT[3+ROW_OFFSET_CURRENT] = '.';
   ROW_USED_CURRENT[6+ROW_OFFSET_CURRENT] = 'A';
 }
-void Convert2String_Voltage(u32 pUmV)
+void Convert2String_Voltage(s32 pUmV)
 {
   /* Row1 right */
 #define ROW_OFFSET_VOLTAGE (u8)9
 #define ROW_USED_VOLTAGE   lcd_row1
-  u32 temp_UmV = pUmV;
+  u32 temp_UmV;
   u8 last_digit;
   
+  if(pUmV < 0) {
+    pUmV = -pUmV;
+    ROW_USED_VOLTAGE[0+ROW_OFFSET_VOLTAGE] = (u8)('-');
+  }
+  else {
+    ROW_USED_VOLTAGE[0+ROW_OFFSET_VOLTAGE] = (u8)(' ');
+  }
+  temp_UmV = (u32)pUmV;
   last_digit = temp_UmV % 10;
   temp_UmV /= 10;
   if(last_digit % 10 >= 5) {
     temp_UmV++;
   }
   
+  ROW_USED_VOLTAGE[5+ROW_OFFSET_VOLTAGE] = (u8)(temp_UmV % 10) + 48;
+  temp_UmV /= 10;
   ROW_USED_VOLTAGE[4+ROW_OFFSET_VOLTAGE] = (u8)(temp_UmV % 10) + 48;
   temp_UmV /= 10;
-  ROW_USED_VOLTAGE[3+ROW_OFFSET_VOLTAGE] = (u8)(temp_UmV % 10) + 48;
+  ROW_USED_VOLTAGE[2+ROW_OFFSET_VOLTAGE] = (u8)(temp_UmV % 10) + 48;
   temp_UmV /= 10;
   ROW_USED_VOLTAGE[1+ROW_OFFSET_VOLTAGE] = (u8)(temp_UmV % 10) + 48;
-  temp_UmV /= 10;
-  ROW_USED_VOLTAGE[0+ROW_OFFSET_VOLTAGE] = (u8)(temp_UmV % 10) + 48;
-  ROW_USED_VOLTAGE[2+ROW_OFFSET_VOLTAGE] = '.';
+  ROW_USED_VOLTAGE[3+ROW_OFFSET_VOLTAGE] = '.';
   ROW_USED_VOLTAGE[6+ROW_OFFSET_VOLTAGE] = 'V';
 }
 
@@ -475,28 +486,36 @@ void Convert2String_Cal(u32 CurrentSenOffset)
 {
   /*  */
 }
-void Convert2String_Power(u32 PowermW)
+void Convert2String_Power(s32 pPowermW)
 {
   /* Row2 right */
   #define ROW_OFFSET_POWER (u8)9
   #define ROW_USED_POWER   lcd_row2
-  u32 temp_PowermW = PowermW;
+  u32 temp_PowermW;
   u8 last_digit;
   
+  if(pPowermW < 0) {
+    pPowermW = -pPowermW;
+    ROW_USED_VOLTAGE[0+ROW_OFFSET_VOLTAGE] = (u8)('-');
+  }
+  else {
+    ROW_USED_VOLTAGE[0+ROW_OFFSET_VOLTAGE] = (u8)(' ');
+  }
+  temp_PowermW = (u32)pPowermW;
   last_digit = temp_PowermW % 10;
   temp_PowermW /= 10;
   if(last_digit % 10 >= 5) {
     temp_PowermW++;
   }
   
+  ROW_USED_POWER[5+ROW_OFFSET_POWER] = (u8)(temp_PowermW % 10) + 48;
+  temp_PowermW /= 10;
   ROW_USED_POWER[4+ROW_OFFSET_POWER] = (u8)(temp_PowermW % 10) + 48;
   temp_PowermW /= 10;
-  ROW_USED_POWER[3+ROW_OFFSET_POWER] = (u8)(temp_PowermW % 10) + 48;
+  ROW_USED_POWER[2+ROW_OFFSET_POWER] = (u8)(temp_PowermW % 10) + 48;
   temp_PowermW /= 10;
   ROW_USED_POWER[1+ROW_OFFSET_POWER] = (u8)(temp_PowermW % 10) + 48;
-  temp_PowermW /= 10;
-  ROW_USED_POWER[0+ROW_OFFSET_POWER] = (u8)(temp_PowermW % 10) + 48;
-  ROW_USED_POWER[2+ROW_OFFSET_POWER] = '.';
+  ROW_USED_POWER[3+ROW_OFFSET_POWER] = '.';
   ROW_USED_POWER[6+ROW_OFFSET_POWER] = 'W';
 }
 
