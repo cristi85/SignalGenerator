@@ -4,7 +4,7 @@
 #include "board.h"
 #include "types.h"
 
-#define TIMER_1US_CNT                 (TIM2->CNT)  /* Free running 1us timer counter */
+#define TIMER_1US_CNT                 (TIM14->CNT)  /* Free running 1us timer counter */
 
 typedef enum
 {
