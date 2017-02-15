@@ -22,7 +22,8 @@ typedef enum
   LCD_Update_Ireq       = (u8)0x08,
   LCD_Update_Cal        = (u8)0x10,
   LCD_Update_CPU_Load   = (u8)0x20,
-  LCD_Update_MaxStack   = (u8)0x40
+  LCD_Update_MaxStack   = (u8)0x40,
+  LCD_Update_Error      = (u8)0x80
 }LCD_Update_t;
 volatile LCD_Update_t LCD_Update = LCD_Update_NO_UPDATE;
 
@@ -37,6 +38,9 @@ void Convert2String_Cal(u32 CurrentSenOffset);
 void Convert2String_Power(s32 pPowermW);
 void Convert2String_CPUload(u16 pcpuload);
 void Convert2String_MaxStack(u8 pMaxStack);
+void CheckSystemClock(u32* clkfreq, u8* clksrc);
+void Convert2String_Errors(void);
+void memcopy(u8* address, u8 data, u32 len);
 
 #define STM_Clk_Src_HSI  (u8)0
 #define STM_Clk_Src_HSE  (u8)1
@@ -72,7 +76,7 @@ static s32 PowermW_old = 0;
 static s16 sample = 0;   //signed sample from ADC
 static u8 ADCNewSample;
 static u8 ADS1112_channel = VOLT_MEASUREMENT;
-const u8 AMP_Offset = 155;   //amperage measurement channel
+const u8 AMP_Offset = 131;   //amperage measurement channel
 const u8 VOLT_Offset = 40;   //voltage measurement channel
 static u8 pga = 8;
 static u32 temp_u32 = 0;
@@ -84,6 +88,9 @@ u32 CurrentSenOffset = 0, CurrentSenOffset_acc = 0;
 u8 cnt_RdCurrentSenOffset;
 u8 cnt_discardADC;
 
+u32 CPUClk = 0;
+u8 CPUClkSrc = 0;
+
 int main(void)
 {
   volatile u8 status = 0xFF;
@@ -93,22 +100,27 @@ int main(void)
   Config();
   Errors_Init();
   
-  SystemCoreClockUpdate();
-  
   while(!LCD_Initialize());
   while(!LCD_Clear());
   while(!LCD_Home());
   LCD_Update |= LCD_Update_Current;
   LCD_Update |= LCD_Update_Voltage;
+  LCD_Update |= LCD_Update_Power;
   
-  ADS1112_Init();
-  //ADS1112_TriggerConversion();
-  ADS1112_SetMeasurementChannel(ADS1112_channel, 1);
-  if(Errors_CheckError(ERROR_ADS1112))
-  { 
-    while(!LCD_Clear());
-    while(!LCD_Home());
-    while(!LCD_WriteString("ADS1112 Error!"));
+  if(!ADS1112_Init()) {
+    Errors_SetError(ERROR_ADS1112);
+    LCD_Update |= LCD_Update_Error;
+  }
+  else {
+    Errors_ResetError(ERROR_ADS1112);
+  }
+  
+  if(!ADS1112_SetMeasurementChannel(ADS1112_channel, 1)) {
+    Errors_SetError(ERROR_ADS1112);
+    LCD_Update |= LCD_Update_Error;
+  }
+  else {
+    Errors_ResetError(ERROR_ADS1112);
   }
   
   while (1)
@@ -148,7 +160,13 @@ int main(void)
       MaxStackUsage_old = StackUsage_GetMaxStackUsage();*/
       FLAG_100ms = FALSE;
       
-      ADS1112_GetSample(&sample, &ADCNewSample);
+      if(!ADS1112_GetSample(&sample, &ADCNewSample)) {
+        Errors_SetError(ERROR_ADS1112);
+        LCD_Update |= LCD_Update_Error;
+      }
+      else {
+        Errors_ResetError(ERROR_ADS1112);
+      }
       if(!Errors_CheckError(ERROR_ADS1112))
       {
         if(ADCNewSample == 1)
@@ -159,7 +177,13 @@ int main(void)
           case VOLT_MEASUREMENT:  //if ADS1112_channel == VOLT_MEASUREMENT means that we have an amperage sample read from the ADC
             {
               ADS1112_channel = AMP_MEASUREMENT;
-              ADS1112_SetMeasurementChannel(ADS1112_channel, pga);
+              if(!ADS1112_SetMeasurementChannel(ADS1112_channel, pga)) {
+                Errors_SetError(ERROR_ADS1112);
+                LCD_Update |= LCD_Update_Error;
+              }
+              else {
+                Errors_ResetError(ERROR_ADS1112);
+              }
               
               sample -= VOLT_Offset;
               flag_negative = FALSE;
@@ -246,7 +270,13 @@ int main(void)
               
               /* Start ADC measurement on the other channel */
               ADS1112_channel = VOLT_MEASUREMENT;
-              ADS1112_SetMeasurementChannel(ADS1112_channel, 1);  //Gain is always 1 for voltage measurement
+              if(!ADS1112_SetMeasurementChannel(ADS1112_channel, 1)) {  //Gain is always 1 for voltage measurement
+                Errors_SetError(ERROR_ADS1112);
+                LCD_Update |= LCD_Update_Error;
+              }
+              else {
+                Errors_ResetError(ERROR_ADS1112);
+              }
               
               break;
             }
@@ -261,6 +291,24 @@ int main(void)
       RTMS_CpuLoadCalculation();
       /*if(RTMS_GetCpuLoadCurrent() != CpuLoad_old) LCD_Update |= LCD_Update_CPU_Load;
       CpuLoad_old = RTMS_GetCpuLoadCurrent();*/
+      
+      /* Check System Clock */
+      CheckSystemClock(&CPUClk, &CPUClkSrc);
+      if(CPUClk != (u32)48000000) {
+        Errors_SetError(ERROR_CLOCK_FREQ);
+        LCD_Update |= LCD_Update_Error;
+      }
+      else {
+        //Errors_ResetError(ERROR_CLOCK_FREQ);
+      }
+      if(CPUClkSrc != (u8)0x08) /* CLK Src is expected to be PLL */{
+        Errors_SetError(ERROR_CLOCK_SRC);
+        LCD_Update |= LCD_Update_Error;
+      }
+      else {
+        //Errors_ResetError(ERROR_CLOCK_SRC);
+      }
+      
       FLAG_1000ms = FALSE;
     }
     
@@ -302,36 +350,42 @@ int main(void)
         }
       case 1:
         {
-          flag_LCD_Update_row1 = FALSE;
-          flag_LCD_Update_row2 = FALSE;
-          /* Max Duration: 26.5us, 1 step */
-          if(LCD_Update & LCD_Update_Current) {
-            Convert2String_Current(ImA);
-            flag_LCD_Update_row1 = TRUE;
+          if(Errors_IsError()) {
+            Convert2String_Errors();
           }
-          if(LCD_Update & LCD_Update_Voltage) {
-            Convert2String_Voltage(UmV);
-            flag_LCD_Update_row1 = TRUE;
-          }
-          /*if(LCD_Update & LCD_Update_Ireq) {
+          else {
+            flag_LCD_Update_row1 = FALSE;
+            flag_LCD_Update_row2 = FALSE;
+            /* Max Duration: 26.5us, 1 step */
+            if(LCD_Update & LCD_Update_Current) {
+              Convert2String_Current(ImA);
+              flag_LCD_Update_row1 = TRUE;
+            }
+            if(LCD_Update & LCD_Update_Voltage) {
+              Convert2String_Voltage(UmV);
+              flag_LCD_Update_row1 = TRUE;
+            }
+            /*if(LCD_Update & LCD_Update_Ireq) {
             Convert2String_Ireq(Requested_Current);
             flag_LCD_Update_row2 = TRUE;
           }*/
-          /*if(LCD_Update & LCD_Update_Cal) {
+            /*if(LCD_Update & LCD_Update_Cal) {
             Convert2String_Cal(CurrentSenOffset);
           }*/
-          if(LCD_Update & LCD_Update_Power) {
-            Convert2String_Power(PowermW);
-            flag_LCD_Update_row2 = TRUE;
-          }
-          /*if(LCD_Update & LCD_Update_MaxStack) {
+            if(LCD_Update & LCD_Update_Power) {
+              Convert2String_Power(PowermW);
+              flag_LCD_Update_row2 = TRUE;
+            }
+            /*if(LCD_Update & LCD_Update_MaxStack) {
             Convert2String_MaxStack(StackUsage_GetMaxStackUsage());
             flag_LCD_Update_row2 = TRUE;
           }*/
-          /*if(LCD_Update & LCD_Update_CPU_Load) {
+            /*if(LCD_Update & LCD_Update_CPU_Load) {
             Convert2String_CPUload(RTMS_GetCpuLoadCurrent());
             flag_LCD_Update_row2 = TRUE;
           }*/
+          }
+          
           step_Background_Task++;
           break;
         }
@@ -360,6 +414,43 @@ int main(void)
   }
 }
 
+void Convert2String_Errors()
+{
+  u8 row_idx = 0;
+  
+  string_copy_noterm(lcd_row1, LCD_CLEAR_ROW);
+  string_copy_noterm(lcd_row2, LCD_CLEAR_ROW);
+  
+  lcd_row1[5] = 'E';
+  lcd_row1[6] = 'R';
+  lcd_row1[7] = 'R';
+  lcd_row1[8] = 'O';
+  lcd_row1[9] = 'R';
+  lcd_row1[10] = ':';
+  
+  if(Errors_CheckError(ERROR_ADS1112)) {
+    lcd_row2[row_idx++] = 'A';
+    lcd_row2[row_idx++] = 'D';
+    lcd_row2[row_idx++] = 'S';
+    lcd_row2[row_idx++] = ',';
+  }
+  if(Errors_CheckError(ERROR_CLOCK_SRC)) {
+    lcd_row2[row_idx++] = 'C';
+    lcd_row2[row_idx++] = 'l';
+    lcd_row2[row_idx++] = 'k';
+    lcd_row2[row_idx++] = 'S';
+    lcd_row2[row_idx++] = ',';
+  }
+  if(Errors_CheckError(ERROR_CLOCK_FREQ)) {
+    lcd_row2[row_idx++] = 'C';
+    lcd_row2[row_idx++] = 'l';
+    lcd_row2[row_idx++] = 'k';
+    lcd_row2[row_idx++] = 'F';
+    lcd_row2[row_idx++] = ',';
+  }
+  lcd_row2[row_idx-1] = ' ';
+}
+
 void Convert2String_Current(s32 pImA)
 {
   /* Row1 left */
@@ -367,13 +458,11 @@ void Convert2String_Current(s32 pImA)
   #define ROW_USED_CURRENT   lcd_row1
   u32 temp_ImA = pImA;
   u8 last_digit;
+  bool flag_negative = FALSE;
   
   if(pImA < 0) {
     pImA = -pImA;
-    ROW_USED_CURRENT[0+ROW_OFFSET_CURRENT] = (u8)('-');
-  }
-  else {
-    ROW_USED_CURRENT[0+ROW_OFFSET_CURRENT] = (u8)(' ');
+    flag_negative = TRUE;  
   }
   temp_ImA = (u32)pImA;
   
@@ -381,6 +470,13 @@ void Convert2String_Current(s32 pImA)
   temp_ImA /= 10;
   if(last_digit % 10 >= 5) {
     temp_ImA++;
+  }
+  
+  ROW_USED_CURRENT[0+ROW_OFFSET_CURRENT] = (u8)(' ');
+  if(temp_ImA > 0) {
+    if(flag_negative) {
+      ROW_USED_CURRENT[0+ROW_OFFSET_CURRENT] = (u8)('-');
+    }
   }
   
   ROW_USED_CURRENT[5+ROW_OFFSET_CURRENT] = (u8)(temp_ImA % 10) + 48;
@@ -400,19 +496,24 @@ void Convert2String_Voltage(s32 pUmV)
 #define ROW_USED_VOLTAGE   lcd_row1
   u32 temp_UmV;
   u8 last_digit;
+  bool flag_negative = FALSE;
   
   if(pUmV < 0) {
     pUmV = -pUmV;
-    ROW_USED_VOLTAGE[0+ROW_OFFSET_VOLTAGE] = (u8)('-');
   }
-  else {
-    ROW_USED_VOLTAGE[0+ROW_OFFSET_VOLTAGE] = (u8)(' ');
-  }
+  
   temp_UmV = (u32)pUmV;
   last_digit = temp_UmV % 10;
   temp_UmV /= 10;
   if(last_digit % 10 >= 5) {
     temp_UmV++;
+  }
+  
+  ROW_USED_VOLTAGE[0+ROW_OFFSET_VOLTAGE] = (u8)(' ');
+  if(temp_UmV > 0) {
+    if(flag_negative) {
+      ROW_USED_VOLTAGE[0+ROW_OFFSET_VOLTAGE] = (u8)('-');
+    }
   }
   
   ROW_USED_VOLTAGE[5+ROW_OFFSET_VOLTAGE] = (u8)(temp_UmV % 10) + 48;
@@ -496,10 +597,10 @@ void Convert2String_Power(s32 pPowermW)
   
   if(pPowermW < 0) {
     pPowermW = -pPowermW;
-    ROW_USED_VOLTAGE[0+ROW_OFFSET_VOLTAGE] = (u8)('-');
+    ROW_USED_POWER[0+ROW_OFFSET_VOLTAGE] = (u8)('-');
   }
   else {
-    ROW_USED_VOLTAGE[0+ROW_OFFSET_VOLTAGE] = (u8)(' ');
+    ROW_USED_POWER[0+ROW_OFFSET_VOLTAGE] = (u8)(' ');
   }
   temp_PowermW = (u32)pPowermW;
   last_digit = temp_PowermW % 10;
@@ -517,6 +618,62 @@ void Convert2String_Power(s32 pPowermW)
   ROW_USED_POWER[1+ROW_OFFSET_POWER] = (u8)(temp_PowermW % 10) + 48;
   ROW_USED_POWER[3+ROW_OFFSET_POWER] = '.';
   ROW_USED_POWER[6+ROW_OFFSET_POWER] = 'W';
+}
+
+void CheckSystemClock(u32* clkfreq, u8* clksrc)
+{
+  uint32_t tmp = 0, pllmull = 0, pllsource = 0, prediv1factor = 0;
+  uint32_t l_SystemCoreClock;
+  extern uint8_t AHBPrescTable[16];
+  /* Get SYSCLK source -------------------------------------------------------*/
+  tmp = RCC->CFGR & RCC_CFGR_SWS;
+  *clksrc = (u8)tmp;
+  
+  switch (tmp)
+  {
+    case 0x00:  /* HSI used as system clock */
+      l_SystemCoreClock = HSI_VALUE;
+      break;
+    case 0x04:  /* HSE used as system clock */
+      l_SystemCoreClock = HSE_VALUE;
+      break;
+    case 0x08:  /* PLL used as system clock */
+      /* Get PLL clock source and multiplication factor ----------------------*/
+      pllmull = RCC->CFGR & RCC_CFGR_PLLMULL;
+      pllsource = RCC->CFGR & RCC_CFGR_PLLSRC;
+      pllmull = ( pllmull >> 18) + 2;
+      
+      if (pllsource == 0x00)
+      {
+        /* HSI oscillator clock divided by 2 selected as PLL clock entry */
+        l_SystemCoreClock = (HSI_VALUE >> 1) * pllmull;
+      }
+      else
+      {
+        prediv1factor = (RCC->CFGR2 & RCC_CFGR2_PREDIV1) + 1;
+        /* HSE oscillator clock selected as PREDIV1 clock entry */
+        l_SystemCoreClock = (HSE_VALUE / prediv1factor) * pllmull; 
+      }      
+      break;
+    default: /* HSI used as system clock */
+      l_SystemCoreClock = HSI_VALUE;
+      break;
+  }
+  /* Compute HCLK clock frequency ----------------*/
+  /* Get HCLK prescaler */
+  tmp = AHBPrescTable[((RCC->CFGR & RCC_CFGR_HPRE) >> 4)];
+  /* HCLK clock frequency */
+  l_SystemCoreClock >>= tmp;
+  *clkfreq = l_SystemCoreClock;
+}
+
+void memcopy(u8* address, u8 data, u32 len)
+{
+  u32 i;
+  for(i = 0; i < len; i++)
+  {
+    *address++ = data;
+  }
 }
 
 #ifdef  USE_FULL_ASSERT
