@@ -968,15 +968,15 @@
     </settings>
   </configuration>
   <group>
-    <name>EWARM</name>
+    <name>CMSIS</name>
     <file>
-      <name>$PROJ_DIR$\..\Libraries\CMSIS\Device\ST\STM32F0xx\Source\Templates\iar\startup_stm32f051.s</name>
+      <name>$PROJ_DIR$\..\Libraries\CMSIS\Device\ST\STM32F0xx\Source\Templates\system_stm32f0xx.c</name>
     </file>
   </group>
   <group>
-    <name>STM32F0-Discovery</name>
+    <name>EWARM</name>
     <file>
-      <name>$PROJ_DIR$\..\Utilities\STM32F0-Discovery\stm32f0_discovery.c</name>
+      <name>$PROJ_DIR$\..\Libraries\CMSIS\Device\ST\STM32F0xx\Source\Templates\iar\startup_stm32f051.s</name>
     </file>
   </group>
   <group>
@@ -1087,10 +1087,10 @@
       <name>$PROJ_DIR$\..\string.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\system_stm32f0xx.c</name>
+      <name>$PROJ_DIR$\..\timeout.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\timeout.c</name>
+      <name>$PROJ_DIR$\..\timeout.h</name>
     </file>
   </group>
 </project>
