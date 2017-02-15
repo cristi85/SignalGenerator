@@ -30,14 +30,14 @@ void Config()
   Config_GPIO();
   //Config_UART1();
   //Config_TIM1();    /* Configure TIM1_CH1 as PWM output on PA8 (PWM1 Output) */
-  Config_TIM2();      /* Configure TIM2 as a free running timer for Runtime measurment */
+  Config_TIM2();      /* PWM generation on PA3 - TIM2_CH4 for operating FAN */
   Config_TIM3();      /* Periodic 2ms interrupt */
-  //Config_TIM6();     /* Periodic DAC triggering */
-  //Config_TIM14();
+  //Config_TIM6();    /* Periodic DAC triggering */
+  Config_TIM14();     /* Configure TIM14 as a free running timer for Runtime measurment */
   //Config_ADC1_DMA();
   //Config_TIM15();    /* for ADC triggering */
   Config_TIM16();    /* for delay module */
-  Config_TIM17();    /* for current/power control PID task triggering */
+  //Config_TIM17();    /* for current/power control PID task triggering */
   //Config_DAC_DMA();
   //Config_DAC();
   Config_I2C();
@@ -56,7 +56,8 @@ void Config_I2C()
   I2C_InitStructure.I2C_DigitalFilter = 0;
   I2C_InitStructure.I2C_Mode = I2C_Mode_I2C;
   I2C_InitStructure.I2C_OwnAddress1 = 0x00;
-  I2C_InitStructure.I2C_Timing = 0x10805E89;  // Master, Standard Mode 100Khz, 48Mhz input clock, Analog Filter Delay ON, Coefficient of Digital Filter 0, Rise 100ns, Fall 10ns
+  //I2C_InitStructure.I2C_Timing = 0x10805E89;  // Master, Standard Mode 100Khz, 48Mhz input clock, Analog Filter Delay ON, Coefficient of Digital Filter 0, Rise 100ns, Fall 10ns
+  I2C_InitStructure.I2C_Timing = 0x1080AAAA;    // 130Khz @ 48MHz input clock
   I2C_InitStructure.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit;
   I2C_Init(I2C2, &I2C_InitStructure);
   I2C_Cmd(I2C2, ENABLE);
@@ -81,14 +82,6 @@ void Config_GPIO()
   GPIO_InitStructure.GPIO_Pin   = DAC_PIN;
   GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AN;
   GPIO_Init(DAC_PORT, &GPIO_InitStructure);
-  /* CURRENT - analog INPUT */
-  GPIO_InitStructure.GPIO_Pin   = CURRENT_PIN;
-  GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AN;
-  GPIO_Init(CURRENT_PORT, &GPIO_InitStructure);
-  /* VOLTAGE - analog INPUT */
-  GPIO_InitStructure.GPIO_Pin   = VOLTAGE_PIN;
-  GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AN;
-  GPIO_Init(VOLTAGE_PORT, &GPIO_InitStructure);
   
   /* DIGITAL PINS CONFIGURATION */
   
@@ -158,12 +151,13 @@ void Config_GPIO()
   GPIO_Init(USART_PORT, &GPIO_InitStructure);
   
   /* DEBUG PIN - digital I/O */
-  GPIO_InitStructure.GPIO_Pin =  DEBUGPIN_PIN;
+  /*GPIO_InitStructure.GPIO_Pin =  DEBUGPIN_PIN;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
   GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
   GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
   GPIO_Init(DEBUGPIN_PORT, &GPIO_InitStructure);
+  */
   
   /* I2C Pins - I2C2_SCL, I2C2_SDA*/
   GPIO_InitStructure.GPIO_Pin =  I2C_SDA_PIN | I2C_SCL_PIN;
@@ -221,18 +215,68 @@ void Config_TIM1()
 /* Configure TIM2_CH4 as PWM output on PA3 (PWM2 Output) */
 void Config_TIM2()
 {
-  TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
+  TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
+  TIM_OCInitTypeDef  TIM_OCInitStructure;
+  GPIO_InitTypeDef GPIO_InitStructure;
+  
   /* TIM2 clock enable */
   RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
-  
-  TIM_TimeBaseInitStruct.TIM_Prescaler = 47;                         // Prescaler=48 (47+1), This parameter can be a number between 0x0000 and 0xFFFF
-  TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;       // This parameter can be a value of @ref TIM_Counter_Mode
-  TIM_TimeBaseInitStruct.TIM_Period = 0xFFFFFFFF;                    // This parameter must be a number between 0x0000 and 0xFFFF, fclk=1M, 1000000->T=1s
-  TIM_TimeBaseInitStruct.TIM_ClockDivision = TIM_CKD_DIV1;           // This parameter can be a value of @ref TIM_Clock_Division_CKD
-  TIM_TimeBaseInitStruct.TIM_RepetitionCounter = 0;                  // This parameter is valid only for TIM1
-  TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
-  
-  /* TIM2 enable counter */
+
+  /* GPIOA and GPIOB clock enable */
+  RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOA, ENABLE);
+
+  /* GPIOA Configuration: TIM2 CH4 (PA3) */
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP ;
+  GPIO_Init(GPIOA, &GPIO_InitStructure); 
+
+  /* Connect TIM Channels to AF1 */
+  GPIO_PinAFConfig(GPIOA, GPIO_PinSource3, GPIO_AF_2);
+
+  /* ---------------------------------------------------------------------------
+    TIM3 Configuration: Output Compare Toggle Mode:
+    
+    In this example TIM3 input clock (TIM3CLK) is set to APB1 clock (PCLK1).
+      => TIM3CLK = PCLK1 = 48 MHz
+                                              
+     CC1 update rate = TIM3 counter clock / CCR1_Val = 1171.8 Hz
+	   ==> So the TIM3 Channel 1 generates a periodic signal with a 
+	       frequency equal to 585.9 Hz.
+
+     CC2 update rate = TIM3 counter clock / CCR2_Val = 2343.75 Hz
+	   ==> So the TIM3 Channel 2 generates a periodic signal with a 
+	       frequency equal to 1171.8 Hz.
+
+     CC3 update rate = TIM3 counter clock / CCR3_Val = 4687.5 Hz
+	   ==> So the TIM3 Channel 3 generates a periodic signal with a 
+	       frequency equal to 2343.75 Hz.
+
+     CC4 update rate = TIM3 counter clock / CCR4_Val = 9375 Hz
+	   ==> So the TIM3 Channel 4 generates a periodic signal with a 
+	       frequency equal to 4687.5 Hz. 
+  --------------------------------------------------------------------------- */   
+
+  /* Time base configuration */
+  TIM_TimeBaseStructure.TIM_Period = 1919;
+  TIM_TimeBaseStructure.TIM_Prescaler = 0;
+  TIM_TimeBaseStructure.TIM_ClockDivision = 0;
+  TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+
+  TIM_TimeBaseInit(TIM2, &TIM_TimeBaseStructure);
+
+  /* Output Compare Toggle Mode configuration: Channel1 */
+  TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_Toggle;
+  TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
+  TIM_OCInitStructure.TIM_Pulse = 1000;
+  TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_Low;
+  TIM_OC4Init(TIM2, &TIM_OCInitStructure);
+
+  TIM_OC4PreloadConfig(TIM2, TIM_OCPreload_Disable);
+
+  /* TIM enable counter */
   TIM_Cmd(TIM2, ENABLE);
 }
 
@@ -264,17 +308,18 @@ void Config_TIM3()
 
 void Config_TIM14()
 {
-  TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
-  /* TIM14 clock enable */
+   TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
+  /* TIM2 clock enable */
   RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM14, ENABLE);
   
-  TIM_TimeBaseInitStruct.TIM_Prescaler = 48;                         // This parameter can be a number between 0x0000 and 0xFFFF
+  TIM_TimeBaseInitStruct.TIM_Prescaler = 47;                         // Prescaler=48 (47+1), This parameter can be a number between 0x0000 and 0xFFFF
   TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;       // This parameter can be a value of @ref TIM_Counter_Mode
-  TIM_TimeBaseInitStruct.TIM_Period = 0xFFFF;                        // This parameter must be a number between 0x0000 and 0xFFFF
+  TIM_TimeBaseInitStruct.TIM_Period = 0xFFFFFFFF;                    // This parameter must be a number between 0x0000 and 0xFFFF, fclk=1M, 1000000->T=1s
   TIM_TimeBaseInitStruct.TIM_ClockDivision = TIM_CKD_DIV1;           // This parameter can be a value of @ref TIM_Clock_Division_CKD
-  TIM_TimeBaseInitStruct.TIM_RepetitionCounter = 0x00;               // This parameter is valid only for TIM1
+  TIM_TimeBaseInitStruct.TIM_RepetitionCounter = 0;                  // This parameter is valid only for TIM1
   TIM_TimeBaseInit(TIM14, &TIM_TimeBaseInitStruct);
-  /* enable counter */
+  
+  /* TIM2 enable counter */
   TIM_Cmd(TIM14, ENABLE);
 }
 
@@ -513,8 +558,8 @@ void Config_ADC1_DMA()
   /* Wait the ADCEN flag */
   Timeout_SetTimeout1(50);   //Set timeout1 to 50ms
   while(!ADC_GetFlagStatus(ADC1, ADC_FLAG_ADEN) && !Timeout_IsTimeout1()); 
-  if(Timeout_IsTimeout1()) Errors_SetError(ERROR_ADC_INIT);
-  else Errors_ResetError(ERROR_ADC_INIT);
+  //if(Timeout_IsTimeout1()) Errors_SetError(ERROR_ADC_INIT);
+  //else Errors_ResetError(ERROR_ADC_INIT);
   
   /* ADC1 regular Software Start Conv */ 
   ADC_StartOfConversion(ADC1);
