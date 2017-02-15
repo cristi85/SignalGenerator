@@ -36,25 +36,16 @@ u8 ADS1112_Init()
   //cfg |= CFG_PGA1;   //Gain setting: PGA1:PGA0 - 00 -> 1; 01 -> 2; 10 -> 4; 11 -> 8
   //cfg |= CFG_PGA0;
   status = I2C_WriteBytesNoSlaveReg(&cfg, 1, ADS1112_ADR);
-  if(status == 0) 
-  {
-    Errors_SetError(ERROR_ADS1112);
+  if(status == 0) {
     return 0;
   }
-  else Errors_ResetError(ERROR_ADS1112);
   status = I2C_ReadBytesNoSlaveReg(tmp, 3, ADS1112_ADR);
-  if(status == 0)
-  {
-    Errors_SetError(ERROR_ADS1112);
+  if(status == 0) {
     return 0;
   }
-  else Errors_ResetError(ERROR_ADS1112);
-  if(cfg != tmp[2])
-  {
-    Errors_SetError(ERROR_ADS1112);
+  if(cfg != tmp[2]) {
     return 0;
   }
-  else Errors_ResetError(ERROR_ADS1112);
   return status;
 }
 /*
@@ -65,12 +56,14 @@ u8 ADS1112_TriggerConversion()
   u8 status = 0, tmp[3];
   //Read existing CFG register
   status = I2C_ReadBytesNoSlaveReg(tmp, 3, ADS1112_ADR);
-  if(status == 0) Errors_SetError(ERROR_ADS1112);
-  else Errors_ResetError(ERROR_ADS1112);
+  if(status == 0) {
+    return 0;
+  }
   tmp[2] |= CFG_ST_DRDY;  //set CFG_ST_DRDY bit, conversion start from selected channel
   status = I2C_WriteBytesNoSlaveReg(&tmp[2], 1, ADS1112_ADR);
-  if(status == 0) Errors_SetError(ERROR_ADS1112);
-  else Errors_ResetError(ERROR_ADS1112);
+  if(status == 0) {
+    return 0;
+  }
   return 1;
 }
 /*
@@ -135,12 +128,9 @@ u8 ADS1112_SetMeasurementChannel(u8 channel, u8 PGA)
   cfg |= CFG_DR0;
   cfg |= CFG_ST_DRDY;  //set CFG_ST_DRDY bit, conversion start from selected channel
   status = I2C_WriteBytesNoSlaveReg(&cfg, 1, ADS1112_ADR);
-  if(status == 0)
-  {
-    Errors_SetError(ERROR_ADS1112);
+  if(status == 0) {
     return 0;
   }
-  else Errors_ResetError(ERROR_ADS1112);
   return status;
 }
 /*
@@ -153,12 +143,9 @@ u8 ADS1112_GetSample(s16* samp, u8* sampstat)
   u8 status = 0, tmp[3];
   *sampstat = 0;
   status = I2C_ReadBytesNoSlaveReg(tmp, 3, ADS1112_ADR);
-  if(status == 0)
-  {
-    Errors_SetError(ERROR_ADS1112);
+  if(status == 0) {
     return 0;
   }
-  else Errors_ResetError(ERROR_ADS1112);
   *samp = tmp[0];
   *samp <<= 8;
   *samp |= tmp[1];
