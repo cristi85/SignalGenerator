@@ -12,9 +12,9 @@ u16 Timeout_toutcnt2 = 0;
 u16 Timeout_tout1 = 100 / TMR_REC;   //init to 100ms
 u16 Timeout_tout2 = 100 / TMR_REC;   //init to 100ms
 
-void Timeout_SetTimeout1(u16 time)
+void Timeout_SetTimeout1(u16 ms)
 {
-  Timeout_tout1 = time / TMR_REC;
+  Timeout_tout1 = ms / TMR_REC;
   Timeout_toutcnt1 = 0;
   Timeout_istout1 = FALSE;
 }
@@ -34,9 +34,9 @@ _Bool Timeout_IsTimeout1()
   return Timeout_istout1;
 }
 
-void Timeout_SetTimeout2(u16 time)
+void Timeout_SetTimeout2(u16 ms)
 {
-  Timeout_tout2 = time / TMR_REC;
+  Timeout_tout2 = ms / TMR_REC;
   Timeout_toutcnt2 = 0;
   Timeout_istout2 = FALSE;
 }
