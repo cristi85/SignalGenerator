@@ -48,17 +48,17 @@
 
 //---------Analog Input Pins----
 // POTENTIOMETER - analog INPUT
-#define VOLTAGE_PORT  GPIOA
-#define VOLTAGE_PIN   GPIO_Pin_3
+//#define VOLTAGE_PORT  GPIOA
+//#define VOLTAGE_PIN   GPIO_Pin_3
 // CURRENT - analog INPUT
-#define CURRENT_PORT        GPIOA
-#define CURRENT_PIN         GPIO_Pin_5
+//#define CURRENT_PORT        GPIOA
+//#define CURRENT_PIN         GPIO_Pin_5
 
 // ------ PWM out pin ----------
-//#define PWM_OUT_PORT  GPIOA
-//#define PWM_OUT_PIN   GPIO_Pin_8
+#define PWM_OUT_PORT  GPIOA
+#define PWM_OUT_PIN   GPIO_Pin_3
 
-// ------ PWM out pin ----------
+// ------ I2C pins ----------
 #define I2C_PORT      GPIOF
 #define I2C_SDA_PIN   GPIO_Pin_7
 #define I2C_SCL_PIN   GPIO_Pin_6
@@ -74,10 +74,10 @@
 #define BTN_FREQDUTY_STATE ((u16)(BTN_PORT->IDR & BTN_MODE_PIN) != (u16)0 ? (u8)1 : (u8)0)
 
 // Debug Pin
-#define DEBUGPIN_PORT   GPIOA
-#define DEBUGPIN_PIN    GPIO_Pin_8
-#define DEBUGPIN_LOW    (DEBUGPIN_PORT->ODR &= (~DEBUGPIN_PIN))
-#define DEBUGPIN_HIGH   (DEBUGPIN_PORT->ODR |= DEBUGPIN_PIN)
-#define DEBUGPIN_TOGGLE ((DEBUGPIN_PORT->ODR & DEBUGPIN_PIN) ? DEBUGPIN_LOW : DEBUGPIN_HIGH )
+//#define DEBUGPIN_PORT   GPIOA
+//#define DEBUGPIN_PIN    GPIO_Pin_8
+//#define DEBUGPIN_LOW    (DEBUGPIN_PORT->ODR &= (~DEBUGPIN_PIN))
+//#define DEBUGPIN_HIGH   (DEBUGPIN_PORT->ODR |= DEBUGPIN_PIN)
+//#define DEBUGPIN_TOGGLE ((DEBUGPIN_PORT->ODR & DEBUGPIN_PIN) ? DEBUGPIN_LOW : DEBUGPIN_HIGH )
 
 #endif
