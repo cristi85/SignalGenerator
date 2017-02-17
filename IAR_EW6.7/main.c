@@ -29,7 +29,7 @@ volatile LCD_Update_t LCD_Update = LCD_Update_NO_UPDATE;
 
 bool flag_LCD_Update_row1 = FALSE;
 bool flag_LCD_Update_row2 = FALSE;
-static u8 step_Background_Task = 0;
+static volatile u8 step_Background_Task = 0;
 
 void Convert2String_Current(s32 ImA);
 void Convert2String_Voltage(s32 UmV);
@@ -70,6 +70,7 @@ static s32 ImA = 0;
 static s32 ImA_old = 0;
 static s32 PowermW = 0;
 static s32 PowermW_old = 0;
+static u32 PowermW_modulo = 0;
 
 #define VOLT_MEASUREMENT (u8)0
 #define AMP_MEASUREMENT  (u8)1
@@ -80,7 +81,9 @@ const u8 AMP_Offset = 131;   //amperage measurement channel
 const u8 VOLT_Offset = 40;   //voltage measurement channel
 static u8 pga = 8;
 static u32 temp_u32 = 0;
-static bool flag_negative = FALSE; 
+static bool flag_negative = FALSE;
+
+u16 FanSpeed = 0;
 
 /* LEM current sensor offset variables */
 #define CURRENTSEN_NUMREADS (u8)32
@@ -261,6 +264,21 @@ int main(void)
               if(PowermW != PowermW_old) LCD_Update |= LCD_Update_Power;
               PowermW_old = PowermW;
               
+              /* Adjust FAN speed */
+              if(PowermW < 0) {
+                PowermW_modulo = (u32)(-PowermW);
+              }
+              else {
+                PowermW_modulo = PowermW;
+              }
+              if(PowermW_modulo < 2000) {
+                FanSpeed = 0;
+              }
+              else {
+                FanSpeed = (PowermW_modulo * 1919) / 50000;
+              }
+              TIM_SetCompare1(TIM1, FanSpeed);
+              
               /* ADS1112 PGA adjustment */
               temp_u32 = (u32)((u32)(sample+AMP_Offset) * (u32)((u16)2048/pga)) / (u16)0x7FFF;
               if(temp_u32 < 256)        pga = 8;
@@ -299,14 +317,14 @@ int main(void)
         LCD_Update |= LCD_Update_Error;
       }
       else {
-        //Errors_ResetError(ERROR_CLOCK_FREQ);
+        Errors_ResetError(ERROR_CLOCK_FREQ);
       }
       if(CPUClkSrc != (u8)0x08) /* CLK Src is expected to be PLL */{
         Errors_SetError(ERROR_CLOCK_SRC);
         LCD_Update |= LCD_Update_Error;
       }
       else {
-        //Errors_ResetError(ERROR_CLOCK_SRC);
+        Errors_ResetError(ERROR_CLOCK_SRC);
       }
       
       FLAG_1000ms = FALSE;
@@ -405,7 +423,11 @@ int main(void)
           }
           break;
         }
-      default: break;
+      default:
+        {
+          __debug = __debug;
+          break;
+        }
       }
     }
     RTMS_MeasureTaskEnd(RunningTask_Bkg);
