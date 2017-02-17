@@ -271,11 +271,14 @@ int main(void)
               else {
                 PowermW_modulo = PowermW;
               }
-              if(PowermW_modulo < 2000) {
+              if(PowermW_modulo < 5000) {
                 FanSpeed = 0;
               }
               else {
-                FanSpeed = (PowermW_modulo * 1919) / 50000;
+                FanSpeed = (PowermW_modulo * 3838) / 30000;
+              }
+              if(FanSpeed > 3838) {
+                FanSpeed = 3838;
               }
               TIM_SetCompare1(TIM1, FanSpeed);
               
@@ -362,7 +365,7 @@ int main(void)
         {
           if(LCD_Home())
           {
-            step_Background_Task++;
+            step_Background_Task = 1;
           }
           break;
         }
@@ -404,13 +407,13 @@ int main(void)
           }*/
           }
           
-          step_Background_Task++;
+          step_Background_Task = 2;
           break;
         }
       case 2:
         {  
           if(LCD_WriteString(lcd_row1)) {
-            step_Background_Task++;
+            step_Background_Task = 3;
           } 
           break;
         }
