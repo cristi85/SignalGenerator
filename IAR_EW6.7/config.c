@@ -29,13 +29,13 @@ void Config()
   
   Config_GPIO();
   //Config_UART1();
-  //Config_TIM1();    /* Configure TIM1_CH1 as PWM output on PA8 (PWM1 Output) */
-  Config_TIM2();      /* PWM generation on PA3 - TIM2_CH4 for operating FAN */
-  Config_TIM3();      /* Periodic 2ms interrupt */
+  Config_TIM1();      /* Configure TIM1_CH1 as PWM output on PA8 (PWM1 Output) */
+  Config_TIM2();      /* Configure TIM2 (32bit) as a free running timer for runtime measurement */
+  Config_TIM3();      /* Periodic 2ms interrupt - 16bit */
   //Config_TIM6();    /* Periodic DAC triggering */
-  Config_TIM14();     /* Configure TIM14 as a free running timer for Runtime measurment */
+  Config_TIM14();     /* Configure TIM14 as a free running timer for Runtime measurment - 16bit*/
   //Config_ADC1_DMA();
-  //Config_TIM15();    /* for ADC triggering */
+  Config_TIM15();    /* PWM generation on PA3 - TIM15_CH2 for operating FAN - 16bit*/
   Config_TIM16();    /* for delay module */
   //Config_TIM17();    /* for current/power control PID task triggering */
   //Config_DAC_DMA();
@@ -181,102 +181,64 @@ void Config_GPIO()
 /* Configure TIM1_CH1 as PWM output on PA8 (PWM1 Output) */
 void Config_TIM1()
 {
-  TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
-  TIM_OCInitTypeDef TIM_OCInitStruct;
-  /* TIM2 clock enable */
-  RCC_APB2PeriphResetCmd(RCC_APB2Periph_TIM1, ENABLE);
-  
-  TIM_TimeBaseInitStruct.TIM_Prescaler = 47;                         // Prescaler=48 (47+1), This parameter can be a number between 0x0000 and 0xFFFF
-  TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;       // This parameter can be a value of @ref TIM_Counter_Mode
-  TIM_TimeBaseInitStruct.TIM_Period = 1000;                          // This parameter must be a number between 0x0000 and 0xFFFF, fclk=10k, 10000->T=1s
-  TIM_TimeBaseInitStruct.TIM_ClockDivision = TIM_CKD_DIV1;           // This parameter can be a value of @ref TIM_Clock_Division_CKD
-  TIM_TimeBaseInitStruct.TIM_RepetitionCounter = 0;                  // This parameter is valid only for TIM1
-  TIM_TimeBaseInit(TIM1, &TIM_TimeBaseInitStruct);
-  
-  TIM_OCInitStruct.TIM_OCMode = TIM_OCMode_PWM1;
-  TIM_OCInitStruct.TIM_OutputState = TIM_OutputState_Enable;
-  TIM_OCInitStruct.TIM_OutputNState = TIM_OutputNState_Disable;
-  TIM_OCInitStruct.TIM_Pulse = 500;                                 // Duty cycle (compared to TIM_Period)
-  TIM_OCInitStruct.TIM_OCPolarity = TIM_OCPolarity_High;
-  TIM_OCInitStruct.TIM_OCNPolarity = TIM_OCNPolarity_High;
-  TIM_OCInitStruct.TIM_OCIdleState = TIM_OCIdleState_Reset;
-  TIM_OCInitStruct.TIM_OCNIdleState = TIM_OCNIdleState_Reset;
-  TIM_OC1Init(TIM1, &TIM_OCInitStruct);
-  
-  //TIM_OC1PreloadConfig(TIM1, TIM_OCPreload_Enable);
-  
-  // TIM1 enable output
-  TIM_CtrlPWMOutputs(TIM1, ENABLE);
-  
-  // TIM1 enable counter
-  TIM_Cmd(TIM1, ENABLE);
-}
-
-/* Configure TIM2_CH4 as PWM output on PA3 (PWM2 Output) */
-void Config_TIM2()
-{
   TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
   TIM_OCInitTypeDef  TIM_OCInitStructure;
   GPIO_InitTypeDef GPIO_InitStructure;
   
-  /* TIM2 clock enable */
-  RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
+  /* TIM1 clock enable */
+  RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE);
 
   /* GPIOA and GPIOB clock enable */
   RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOA, ENABLE);
 
-  /* GPIOA Configuration: TIM2 CH4 (PA3) */
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
+  /* GPIOA Configuration: TIM1 CH1 (PA8) */
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP ;
+  GPIO_InitStructure.GPIO_OType = GPIO_OType_PP/*GPIO_OType_OD*/;
+  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL ;
   GPIO_Init(GPIOA, &GPIO_InitStructure); 
 
-  /* Connect TIM Channels to AF1 */
-  GPIO_PinAFConfig(GPIOA, GPIO_PinSource3, GPIO_AF_2);
-
-  /* ---------------------------------------------------------------------------
-    TIM3 Configuration: Output Compare Toggle Mode:
-    
-    In this example TIM3 input clock (TIM3CLK) is set to APB1 clock (PCLK1).
-      => TIM3CLK = PCLK1 = 48 MHz
-                                              
-     CC1 update rate = TIM3 counter clock / CCR1_Val = 1171.8 Hz
-	   ==> So the TIM3 Channel 1 generates a periodic signal with a 
-	       frequency equal to 585.9 Hz.
-
-     CC2 update rate = TIM3 counter clock / CCR2_Val = 2343.75 Hz
-	   ==> So the TIM3 Channel 2 generates a periodic signal with a 
-	       frequency equal to 1171.8 Hz.
-
-     CC3 update rate = TIM3 counter clock / CCR3_Val = 4687.5 Hz
-	   ==> So the TIM3 Channel 3 generates a periodic signal with a 
-	       frequency equal to 2343.75 Hz.
-
-     CC4 update rate = TIM3 counter clock / CCR4_Val = 9375 Hz
-	   ==> So the TIM3 Channel 4 generates a periodic signal with a 
-	       frequency equal to 4687.5 Hz. 
-  --------------------------------------------------------------------------- */   
+  /* Connect TIM1 Channel 1 to AF2 */
+  GPIO_PinAFConfig(GPIOA, GPIO_PinSource8, GPIO_AF_2);
 
   /* Time base configuration */
   TIM_TimeBaseStructure.TIM_Period = 1919;
   TIM_TimeBaseStructure.TIM_Prescaler = 0;
   TIM_TimeBaseStructure.TIM_ClockDivision = 0;
   TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-
-  TIM_TimeBaseInit(TIM2, &TIM_TimeBaseStructure);
+  TIM_TimeBaseInit(TIM1, &TIM_TimeBaseStructure);
 
   /* Output Compare Toggle Mode configuration: Channel1 */
-  TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_Toggle;
+  TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM2;
   TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
-  TIM_OCInitStructure.TIM_Pulse = 1000;
+  TIM_OCInitStructure.TIM_OutputNState = TIM_OutputNState_Disable;
+  TIM_OCInitStructure.TIM_Pulse = 0;
   TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_Low;
-  TIM_OC4Init(TIM2, &TIM_OCInitStructure);
+  TIM_OCInitStructure.TIM_OCIdleState = TIM_OCIdleState_Reset;
+  TIM_OCInitStructure.TIM_OCNIdleState = TIM_OCNIdleState_Reset;
+  TIM_OC1Init(TIM1, &TIM_OCInitStructure);
 
-  TIM_OC4PreloadConfig(TIM2, TIM_OCPreload_Disable);
+  //TIM_OC1PreloadConfig(TIM1, TIM_OCPreload_Disable);
 
-  /* TIM enable counter */
+  TIM_Cmd(TIM1, ENABLE);
+  TIM_CtrlPWMOutputs(TIM1, ENABLE);
+}
+
+/* Configure TIM2 (32bit) as a free running timer for runtime measurement */
+void Config_TIM2()
+{
+  TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
+
+  RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
+  
+  TIM_TimeBaseInitStruct.TIM_Prescaler = 47;                         // Prescaler=48 (47+1), This parameter can be a number between 0x0000 and 0xFFFF
+  TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;       // This parameter can be a value of @ref TIM_Counter_Mode
+  TIM_TimeBaseInitStruct.TIM_Period = 0xFFFFFFFF;                    // This parameter must be a number between 0x0000 and 0xFFFF, fclk=1M, 1000000->T=1s
+  TIM_TimeBaseInitStruct.TIM_ClockDivision = TIM_CKD_DIV1;           // This parameter can be a value of @ref TIM_Clock_Division_CKD
+  TIM_TimeBaseInitStruct.TIM_RepetitionCounter = 0;                  // This parameter is valid only for TIM1
+  TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStruct);
+  
   TIM_Cmd(TIM2, ENABLE);
 }
 
@@ -308,8 +270,8 @@ void Config_TIM3()
 
 void Config_TIM14()
 {
-   TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
-  /* TIM2 clock enable */
+  TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
+
   RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM14, ENABLE);
   
   TIM_TimeBaseInitStruct.TIM_Prescaler = 47;                         // Prescaler=48 (47+1), This parameter can be a number between 0x0000 and 0xFFFF
@@ -319,24 +281,52 @@ void Config_TIM14()
   TIM_TimeBaseInitStruct.TIM_RepetitionCounter = 0;                  // This parameter is valid only for TIM1
   TIM_TimeBaseInit(TIM14, &TIM_TimeBaseInitStruct);
   
-  /* TIM2 enable counter */
   TIM_Cmd(TIM14, ENABLE);
 }
 
+/* Configure TIM15_CH2 as PWM output on PA3 (PWM2 Output) */
 void Config_TIM15()
 {
-  TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
+  TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
+  TIM_OCInitTypeDef  TIM_OCInitStructure;
+  GPIO_InitTypeDef GPIO_InitStructure;
+  
   /* TIM15 clock enable */
   RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM15, ENABLE);
-  
-  TIM_TimeBaseInitStruct.TIM_Prescaler = 47;                         // for division to 48 (1us resolution), prescaler has to be set to 48-1
-  TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;       // This parameter can be a value of @ref TIM_Counter_Mode
-  TIM_TimeBaseInitStruct.TIM_Period = 39;                            // Overflow every (39+1) us
-  TIM_TimeBaseInitStruct.TIM_ClockDivision = TIM_CKD_DIV1;           // This parameter can be a value of @ref TIM_Clock_Division_CKD
-  TIM_TimeBaseInitStruct.TIM_RepetitionCounter = 0x00;               // This parameter is valid only for TIM1
-  TIM_TimeBaseInit(TIM15, &TIM_TimeBaseInitStruct);
-  TIM_SelectOutputTrigger(TIM15, TIM_TRGOSource_Update);
+
+  /* GPIOA and GPIOB clock enable */
+  RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOA, ENABLE);
+
+  /* GPIOA Configuration: TIM15 CH2 (PA3) */
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP ;
+  GPIO_Init(GPIOA, &GPIO_InitStructure); 
+
+  /* Connect TIM Channel to AF0 */
+  GPIO_PinAFConfig(GPIOA, GPIO_PinSource3, GPIO_AF_0);
+
+  /* Time base configuration */
+  TIM_TimeBaseStructure.TIM_Period = 1919;
+  TIM_TimeBaseStructure.TIM_Prescaler = 0;
+  TIM_TimeBaseStructure.TIM_ClockDivision = 0;
+  TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+  TIM_TimeBaseInit(TIM15, &TIM_TimeBaseStructure);
+
+  /* Output Compare Toggle Mode configuration: Channel1 */
+  TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM2;
+  TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
+  TIM_OCInitStructure.TIM_Pulse = 200;
+  TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_Low;
+  TIM_OC2Init(TIM15, &TIM_OCInitStructure);
+
+  TIM_OC2PreloadConfig(TIM15, TIM_OCPreload_Disable);
+
+  /* TIM enable counter */
   TIM_Cmd(TIM15, ENABLE);
+  TIM_CtrlPWMOutputs(TIM15, ENABLE);
 }
 
 void Config_TIM16()
