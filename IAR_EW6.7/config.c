@@ -35,8 +35,8 @@ void Config()
   //Config_TIM6();    /* Periodic DAC triggering */
   Config_TIM14();     /* Configure TIM14 as a free running timer for Runtime measurment - 16bit*/
   //Config_ADC1_DMA();
-  Config_TIM15();    /* PWM generation on PA3 - TIM15_CH2 for operating FAN - 16bit*/
-  Config_TIM16();    /* for delay module */
+  Config_TIM15();     /* Input capture on PA3 - TIM15_CH2 for reading FAN RPM - 16bit*/
+  Config_TIM16();     /* for delay module */
   //Config_TIM17();    /* for current/power control PID task triggering */
   //Config_DAC_DMA();
   //Config_DAC();
@@ -195,7 +195,7 @@ void Config_TIM1()
   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_InitStructure.GPIO_OType = GPIO_OType_PP/*GPIO_OType_OD*/;
+  GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
   GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL ;
   GPIO_Init(GPIOA, &GPIO_InitStructure); 
 
@@ -203,7 +203,7 @@ void Config_TIM1()
   GPIO_PinAFConfig(GPIOA, GPIO_PinSource8, GPIO_AF_2);
 
   /* Time base configuration */
-  TIM_TimeBaseStructure.TIM_Period = 1919;
+  TIM_TimeBaseStructure.TIM_Period = 3838;
   TIM_TimeBaseStructure.TIM_Prescaler = 0;
   TIM_TimeBaseStructure.TIM_ClockDivision = 0;
   TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
@@ -284,49 +284,56 @@ void Config_TIM14()
   TIM_Cmd(TIM14, ENABLE);
 }
 
-/* Configure TIM15_CH2 as PWM output on PA3 (PWM2 Output) */
+/* Configure TIM15_CH2 as input capture for reading FAN RPM on PA3 */
 void Config_TIM15()
 {
-  TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
-  TIM_OCInitTypeDef  TIM_OCInitStructure;
+  TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
+  TIM_ICInitTypeDef  TIM_ICInitStructure;
   GPIO_InitTypeDef GPIO_InitStructure;
+  NVIC_InitTypeDef NVIC_InitStructure;
   
-  /* TIM15 clock enable */
+  /* TIM1 clock enable */
   RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM15, ENABLE);
 
-  /* GPIOA and GPIOB clock enable */
+  /* GPIOA clock enable */
   RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOA, ENABLE);
-
-  /* GPIOA Configuration: TIM15 CH2 (PA3) */
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
+  
+  /* TIM15 channel 2 pin (PA3) configuration */
+  GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_3;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP ;
-  GPIO_Init(GPIOA, &GPIO_InitStructure); 
+  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+  GPIO_Init(GPIOA, &GPIO_InitStructure);
 
-  /* Connect TIM Channel to AF0 */
+  TIM_TimeBaseInitStruct.TIM_Prescaler = 47;                         
+  TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;       
+  TIM_TimeBaseInitStruct.TIM_Period = 0xFFFFFFFF; 
+  TIM_TimeBaseInitStruct.TIM_ClockDivision = TIM_CKD_DIV1;           
+  TIM_TimeBaseInitStruct.TIM_RepetitionCounter = 0;
+  TIM_TimeBaseInit(TIM15, &TIM_TimeBaseInitStruct);
+  
+  /* Connect TIM pins to AF0 */
   GPIO_PinAFConfig(GPIOA, GPIO_PinSource3, GPIO_AF_0);
 
-  /* Time base configuration */
-  TIM_TimeBaseStructure.TIM_Period = 1919;
-  TIM_TimeBaseStructure.TIM_Prescaler = 0;
-  TIM_TimeBaseStructure.TIM_ClockDivision = 0;
-  TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-  TIM_TimeBaseInit(TIM15, &TIM_TimeBaseStructure);
+  TIM_ICInitStructure.TIM_Channel = TIM_Channel_2;
+  TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Rising;
+  TIM_ICInitStructure.TIM_ICSelection = TIM_ICSelection_DirectTI;
+  TIM_ICInitStructure.TIM_ICPrescaler = TIM_ICPSC_DIV1;
+  TIM_ICInitStructure.TIM_ICFilter = 0x0;
 
-  /* Output Compare Toggle Mode configuration: Channel1 */
-  TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM2;
-  TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
-  TIM_OCInitStructure.TIM_Pulse = 200;
-  TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_Low;
-  TIM_OC2Init(TIM15, &TIM_OCInitStructure);
-
-  TIM_OC2PreloadConfig(TIM15, TIM_OCPreload_Disable);
-
-  /* TIM enable counter */
+  TIM_ICInit(TIM15, &TIM_ICInitStructure);
+  
   TIM_Cmd(TIM15, ENABLE);
-  TIM_CtrlPWMOutputs(TIM15, ENABLE);
+
+  /* Enable the CC2 Interrupt Request */
+  TIM_ITConfig(TIM15, TIM_IT_CC2, ENABLE);
+  
+  /* Enable the TIM1 global Interrupt */
+  NVIC_InitStructure.NVIC_IRQChannel = TIM15_IRQn;
+  NVIC_InitStructure.NVIC_IRQChannelPriority = 0;
+  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+  NVIC_Init(&NVIC_InitStructure);
 }
 
 void Config_TIM16()
