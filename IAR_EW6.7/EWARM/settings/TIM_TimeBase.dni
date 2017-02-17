@@ -1,5 +1,5 @@
 [DebugChecksum]
-Checksum=-2075938956
+Checksum=-480395153
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -113,6 +113,7 @@ Fmt27={W}1:StackAddressTop	4	0
 Fmt28={W}1:__ICFEDIT_size_cstack__	4	0
 Fmt29={W}1:current_SP	4	0
 Fmt30={W}1:mode	3	0
+Fmt31={W}1:step_Background_Task	3	0
 [Log file]
 LoggingEnabled=_ 0
 LogFile=_ ""
