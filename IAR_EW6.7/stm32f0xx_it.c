@@ -104,7 +104,8 @@ bool LCD_UPDATE_LIMIT_FLAG = FALSE;
 u16 lcd_update_limit_delay_cnt = 0;
 #define LCD_UPDATE_LIMIT_DELAY (u8)166  /* limit LCD update to maximum once overy 166*2ms (333ms) */
 
-
+u16 Tim15CAP = 0, Tim15CAP_old = 0, TIM15CAP_delta = 0;
+u16 FanRPM = 0;
 /* Public variables */
 static u8 i;
 
@@ -454,6 +455,18 @@ void I2C2_IRQHandler(void)
   {
     I2C_ClearITPendingBit(I2C2, I2C_IT_BERR);
   }   
+}
+
+void TIM15_IRQHandler(void)
+{
+  if(TIM_GetITStatus(TIM15, TIM_IT_CC2) == SET)
+  {
+    TIM_ClearITPendingBit(TIM15, TIM_IT_CC2);
+    Tim15CAP = TIM_GetCapture2(TIM15);
+    TIM15CAP_delta = Tim15CAP - Tim15CAP_old;
+    FanRPM = (u32)60000000 / TIM15CAP_delta;
+    Tim15CAP_old = Tim15CAP;
+  }
 }
 
 void USART1_IRQHandler(void)
